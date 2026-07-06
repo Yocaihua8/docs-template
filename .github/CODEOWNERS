@@ -1,0 +1,24 @@
+# CODEOWNERS
+#
+# 本文件用于把模块 Owner 和默认 Reviewer 接入 GitHub CODEOWNERS Review。
+# 复制模板后必须将 @your-org/* 替换为真实 GitHub team 或 user。
+# 建议在 GitHub 分支保护中启用 Require review from Code Owners。
+
+# 全局默认负责人。小项目可只保留这一行。
+* @your-org/maintainers
+
+# 文档模板与协作规范。
+/docs/ @your-org/docs-owner @your-org/docs-reviewers
+/docs/guides/team-collaboration.md @your-org/team-collaboration-owner @your-org/docs-reviewers
+/docs/guides/branch-conventions.md @your-org/team-collaboration-owner @your-org/docs-reviewers
+/CONTRIBUTING.md @your-org/team-collaboration-owner @your-org/docs-reviewers
+/AGENTS.md @your-org/team-collaboration-owner @your-org/docs-reviewers
+
+# GitHub 门禁与维护脚本。
+/.github/ @your-org/platform-owner @your-org/platform-reviewers
+/scripts/ @your-org/tooling-owner @your-org/tooling-reviewers
+
+# 使用说明：
+# - 每个长期维护模块都应在 docs/guides/team-collaboration.md 的模块责任表中有对应条目。
+# - CODEOWNERS 负责触发默认评审，不替代 PR 中的影响范围、锁定范围和冲突扫描说明。
+# - 高风险变更仍需按 CONTRIBUTING.md 要求安排额外 Reviewer。
