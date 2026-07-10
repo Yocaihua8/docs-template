@@ -507,7 +507,7 @@ try {
         $sourceFull = Get-ComparablePath (Join-Path $repoRoot ($row.source -replace '/', [System.IO.Path]::DirectorySeparatorChar))
         if (-not (Test-PathWithin $sourceFull $repoRoot)) { Stop-InitDocs 4 "Source escapes the repository: $($row.source)" }
         if (-not [System.IO.File]::Exists($sourceFull)) { Stop-InitDocs 4 "Source file does not exist: $($row.source)" }
-        if (((Get-Item -LiteralPath $sourceFull).Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { Stop-InitDocs 4 "Source file is a symlink or reparse point: $($row.source)" }
+        if (((Get-Item -LiteralPath $sourceFull -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { Stop-InitDocs 4 "Source file is a symlink or reparse point: $($row.source)" }
         if ($row.mode -eq "copy" -and $row.placeholder_policy -eq "replace") { Stop-InitDocs 4 "A copy row cannot use placeholder_policy=replace: $($row.source)" }
         $selectedRowsByDestination.Add($row.destination, [pscustomobject]@{ Manifest = $row; SourceFull = $sourceFull })
     }

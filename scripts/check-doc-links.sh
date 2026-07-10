@@ -125,6 +125,7 @@ normalize_path() {
 
 path_case_exact() {
   local value="$1"
+  local path_to_walk="$value"
   local part entry
   local current="/"
   local -a parts
@@ -139,7 +140,23 @@ path_case_exact() {
     return 1
   fi
 
-  IFS='/' read -r -a parts <<< "$value"
+  # MSYS/Cygwin drive mounts such as /c may exist without being enumerable as
+  # children of /. Start inside the virtual drive and keep checking every real
+  # path segment with case-sensitive find matching.
+  case "${OSTYPE:-}" in
+    msys*|cygwin*|mingw*)
+      if [[ "$path_to_walk" =~ ^/([A-Za-z])(/|$) ]]; then
+        current="/${BASH_REMATCH[1]}"
+        path_to_walk="${path_to_walk:2}"
+        path_to_walk="${path_to_walk#/}"
+      elif [[ "$path_to_walk" =~ ^([A-Za-z]):(/|$) ]]; then
+        current="${BASH_REMATCH[1]}:/"
+        path_to_walk="${path_to_walk:3}"
+      fi
+      ;;
+  esac
+
+  IFS='/' read -r -a parts <<< "$path_to_walk"
   for part in "${parts[@]}"; do
     [ -n "$part" ] || continue
     entry="$(find "$current" -mindepth 1 -maxdepth 1 -name "$part" -print -quit 2>/dev/null)"
