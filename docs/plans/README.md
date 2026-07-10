@@ -2,7 +2,7 @@
 
 > 状态：Active
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 
 本目录存放 AI 编码助手在执行 BACKLOG 任务时生成的**任务计划文件**。
 
@@ -11,11 +11,11 @@
 | 文档 | 面向 | 内容 | 生命周期 |
 |------|------|------|----------|
 | `../BACKLOG.md` | 团队 | 要做什么、优先级、规模 | 长期维护 |
-| `../adr/*.md` | 团队 | 为什么这样设计 | 永久保留 |
+| `../adr/*.md`（启用 `architecture` pack 时） | 团队 | 为什么这样设计 | 永久保留 |
 | `../devlog/YYYY/MM/*.md` | 开发者 | 做了什么、卡在哪 | 持续保留在年月目录 |
 | `./*.md`（本目录） | AI + 执行者 | 怎么做、任务拆解、完成标准 | **任务完成后删除** |
 
-**一句话区分**：BACKLOG 是"要做什么"，ADR 是"为什么这么定"，DevLog 是"做到哪了"，**Plan 是"这次怎么做"**。
+**一句话区分**：BACKLOG 是"要做什么"，DevLog 是"做到哪了"，**Plan 是"这次怎么做"**；启用 `architecture` pack 时，ADR 记录"为什么这样定"。
 
 ## 2. 文件命名规范
 
@@ -79,9 +79,9 @@ BACKLOG doing，plan 与 BACKLOG 双向关联
 | 内容 | 回流目标 |
 |------|----------|
 | 功能行为变更 | `../features/<name>.md` |
-| 接口变更 | `../design/api-spec.md` |
-| 数据库结构变更 | `../design/database-design.md` |
-| 重大技术决策 | `../adr/<ADR-ID>.md` + `../adr/README.md` 索引 |
+| 接口变更 | 启用 `api` pack 时更新 `../design/api-spec.md`；否则更新项目实际存在的功能或契约文档 |
+| 数据或持久化结构变更 | 启用 `data` pack 时更新 `../design/database-design.md`；否则更新项目实际存在的数据说明或功能文档 |
+| 重大技术决策 | 启用 `architecture` pack 时更新 `../adr/<ADR-ID>.md` 与 `../adr/README.md`；否则回流到实际存在的长期设计或功能文档 |
 | 遇到的问题与规避 | `../BACKLOG.md`（已知问题）或 `../devlog/YYYY/MM/` |
 
 ## 5. 模板

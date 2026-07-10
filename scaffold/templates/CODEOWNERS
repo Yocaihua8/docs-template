@@ -1,0 +1,6 @@
+# Replace {{GITHUB_OWNER}} with a real GitHub user or team, including the @ prefix.
+* {{GITHUB_OWNER}}
+
+/README.md {{GITHUB_OWNER}}
+/docs/ {{GITHUB_OWNER}}
+/.github/ {{GITHUB_OWNER}}

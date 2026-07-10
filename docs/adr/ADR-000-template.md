@@ -1,7 +1,7 @@
 # ADR-000 {{DECISION_TITLE}}
 
 > 状态：Proposed / Accepted / Deprecated / Superseded / Rejected
-> Date：{{YYYY-MM-DD}}
+> Date：{{CURRENT_DATE}}
 > Owner：{{OWNER}}
 > Related：{{RELATED_DOCS}}
 
@@ -15,7 +15,7 @@ ADR 状态生命周期：
   Proposed ──► Rejected（未被采纳，保留以记录讨论过程）
 
 转为 Deprecated / Superseded 时，在头部补充：
-  > Deprecated since：{{YYYY-MM-DD}}
+  > Deprecated since：{{CURRENT_DATE}}
   > Superseded by：{{NEW_ADR_ID}}（若被新 ADR 替代）
 -->
 
@@ -69,8 +69,8 @@ ADR 状态生命周期：
 
 | 项目 | 内容 |
 |------|------|
-| 实施开始日期 | {{YYYY-MM-DD}} |
-| 实施结束日期 | {{YYYY-MM-DD}} |
+| 实施开始日期 | {{CURRENT_DATE}} |
+| 实施结束日期 | {{CURRENT_DATE}} |
 | 实施负责人 | {{OWNER}} |
 | 里程碑 | {{MILESTONES}}（可选） |
 

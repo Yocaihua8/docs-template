@@ -2,7 +2,7 @@
 
 > 状态：Active
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 
 用于记录尚未完成、待验证、待决策、已知问题和技术债。**这里允许写规划内容**，但应保持可执行和可追踪。
 
@@ -11,7 +11,7 @@
 - 已经上线/已确定的内容不要留在 BACKLOG
 - 每条记录必须有状态和优先级
 - 大而空的愿景不写，尽量拆成可执行事项
-- `done` 条目在每次版本发布或里程碑结束时清理；清理前确保对应变更已记入 `CHANGELOG.md`
+- `done` 条目可在里程碑结束时清理或归档；若项目启用了 `release-support` pack，则在版本发布前把面向使用者的变更同步到 `CHANGELOG.md`
 
 ### 1.1 待办清单 vs 已知问题
 
@@ -25,9 +25,11 @@
 **流转规则**：
 
 - 一旦决定修复某个已知问题，**必须**在 § 6 新建对应 `B-xxx` 条目，并在原 `ISSUE-xxx` 的"计划处理方式"中引用该 ID
-- 待办完成并验证后**可以**从 § 6 移除；已知问题在修复发布后**应该**从 § 7 移除并记入 `CHANGELOG.md`
+- 待办完成并验证后**可以**从 § 6 移除；已知问题在修复并验证后**应该**从 § 7 移除。若项目启用了 `release-support` pack 且修复随版本发布，再把对应变更记入 `CHANGELOG.md`
 
-**与 plan 文件的联动**：
+**与 plan 文件的联动（仅在启用 `ai-planning` pack 时适用）**：
+
+未启用 `ai-planning` pack 时，直接通过 § 6 的状态、关联文档和说明字段追踪任务，不要求创建 plan 文件。
 
 - AI 开始执行某条 `B-xxx` 时（无论 plan 由主动创建还是工具自动生成），在该条目的"说明"列填入 plan 文件的完整相对路径，同时将状态置为 `doing`
   - 主动创建示例：`见 docs/plans/B-001-order-export.md`
@@ -39,7 +41,7 @@
 - `todo`：待开始
 - `doing`：进行中
 - `blocked`：被阻塞
-- `done`：已完成，待在下次版本发布时删除并记入 `CHANGELOG.md`
+- `done`：已完成并验证；可在里程碑结束时归档或清理，启用 `release-support` pack 时按发布规则同步 `CHANGELOG.md`
 - `wontfix`：暂不处理
 
 ## 3. 优先级定义
@@ -63,7 +65,7 @@
 
 | 里程碑名称 | 目标摘要 | 截止日期 |
 |-----------|---------|---------|
-| {{MILESTONE_NAME}} | {{GOAL_SUMMARY}} | {{YYYY-MM-DD}} |
+| {{MILESTONE_NAME}} | {{GOAL_SUMMARY}} | {{MILESTONE_DUE_DATE}} |
 
 ## 6. 待办清单模板
 

@@ -2,7 +2,7 @@
 
 > 状态：Draft
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 
@@ -78,7 +78,7 @@
 ## 7. 值班交接模板
 
 ```markdown
-日期：{{YYYY-MM-DD}}
+日期：{{CURRENT_DATE}}
 交班人：{{HANDOVER_FROM}}
 接班人：{{HANDOVER_TO}}
 

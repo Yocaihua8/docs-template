@@ -2,7 +2,7 @@
 
 > 状态：Draft
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 
@@ -19,6 +19,7 @@
 | 币种 | {{CURRENCY}} |
 | 是否含税 | {{TAX_INCLUDED}} |
 | 税率 / 税务说明 | {{TAX_NOTE}} |
+| 估算 / 计费模式 | 固定价 / 按时计费 / 阶段价 / 顾问服务 / N/A：{{ESTIMATION_MODEL}} |
 | 预估口径 | 区间估算，不作为固定单点承诺 |
 
 ## 2. 范围内
@@ -35,21 +36,23 @@
 
 范围外事项不得默认包含在报价内。若客户确认追加，必须重新评估工时、工期、成本和风险缓冲。
 
-## 4. 功能模块与工时预估
+## 4. 工作量预估
 
-| 模块 | 复杂度 | 主要角色 | 乐观人日 | 常规人日 | 保守人日 | 说明 |
-|------|--------|----------|----------|----------|----------|------|
-| {{MODULE_NAME}} | 低 / 中 / 高 | {{ROLE_LIST}} | {{LOW_PD}} | {{MID_PD}} | {{HIGH_PD}} | {{NOTE}} |
+个人固定价、小型咨询、内容 / 设计交付或无法用人日表达的项目，可改用小时、任务点、阶段包或 `N/A`。多人角色和并行度只在真实存在时填写。
 
-工时预估用于衡量投入量，不等于日历工期。多人并行、客户反馈等待、外部接口联调和验收排期都会影响最终交付周期。
+| 模块 / 交付项 | 复杂度 | 主要执行者 | 工作量单位 | 乐观 | 常规 | 保守 | 说明 |
+|---------------|--------|------------|------------|------|------|------|------|
+| {{MODULE_OR_DELIVERABLE}} | 低 / 中 / 高 | {{PRIMARY_EXECUTOR_OR_NA}} | 小时 / 人日 / 任务点 / 阶段包 / N/A | {{LOW_EFFORT}} | {{MID_EFFORT}} | {{HIGH_EFFORT}} | {{NOTE}} |
+
+工作量用于衡量投入，不等于日历工期。客户反馈等待、外部依赖和验收排期都会影响最终交付周期；没有多人并行时不要填写虚假的并行收益。
 
 ## 5. 工期预估
 
-| 阶段 | 主要内容 | 预计开始 | 预计结束 | 日历周期 | 人日 | 人周 | 并行度 | 关键路径 | 外部依赖 / 等待时间 |
-|------|----------|----------|----------|----------|------|------|--------|----------|--------------------|
-| {{PHASE_NAME}} | {{PHASE_SCOPE}} | {{START_DATE}} | {{END_DATE}} | {{CALENDAR_DURATION}} | {{PERSON_DAYS}} | {{PERSON_WEEKS}} | {{PARALLELISM}} | {{CRITICAL_PATH}} | {{DEPENDENCY_OR_WAITING_TIME}} |
+| 阶段 | 主要内容 | 预计开始 | 预计结束 | 日历周期 | 工作量 | 并行度（如有） | 关键路径 | 外部依赖 / 等待时间 |
+|------|----------|----------|----------|----------|--------|----------------|----------|--------------------|
+| {{PHASE_NAME}} | {{PHASE_SCOPE}} | {{START_DATE}} | {{END_DATE}} | {{CALENDAR_DURATION}} | {{EFFORT_WITH_UNIT}} | {{PARALLELISM_OR_NA}} | {{CRITICAL_PATH_OR_NA}} | {{DEPENDENCY_OR_WAITING_TIME_OR_NA}} |
 
-工期预估必须同时展示人日 / 人周和日历周期，避免把投入量误读为交付周期。
+工期预估应同时展示工作量单位和日历周期，避免把投入量误读为交付周期。一次性交付或无排期承诺的咨询项目可将日历计划标为 `N/A`，并解释交付触发条件。
 
 ### 5.1 关键路径
 
@@ -65,14 +68,11 @@
 
 ## 6. 成本预估
 
+只列真实成本项。个人项目、纯人力服务、无云资源或无独立 QA / PM 成本时删除对应类别或填 `N/A`，不要重复使用同一个金额占位符代表多个成本。
+
 | 成本项 | 计算口径 | 乐观金额 | 常规金额 | 保守金额 | 说明 |
 |--------|----------|----------|----------|----------|------|
-| 人力成本 | {{RATE}} x {{PERSON_DAYS}} | {{LOW_AMOUNT}} | {{MID_AMOUNT}} | {{HIGH_AMOUNT}} | {{NOTE}} |
-| 第三方服务 | {{SERVICE_PRICING_MODEL}} | {{LOW_AMOUNT}} | {{MID_AMOUNT}} | {{HIGH_AMOUNT}} | {{NOTE}} |
-| 云资源 | {{CLOUD_RESOURCE_MODEL}} | {{LOW_AMOUNT}} | {{MID_AMOUNT}} | {{HIGH_AMOUNT}} | {{NOTE}} |
-| 测试验收 | {{QA_ACCEPTANCE_MODEL}} | {{LOW_AMOUNT}} | {{MID_AMOUNT}} | {{HIGH_AMOUNT}} | {{NOTE}} |
-| 项目管理 | {{PM_MODEL}} | {{LOW_AMOUNT}} | {{MID_AMOUNT}} | {{HIGH_AMOUNT}} | {{NOTE}} |
-| 风险缓冲 | {{BUFFER_RATE}} | {{LOW_AMOUNT}} | {{MID_AMOUNT}} | {{HIGH_AMOUNT}} | 覆盖需求变动、联调等待和返工风险 |
+| {{COST_ITEM_OR_NA}} | {{COST_CALCULATION_OR_NA}} | {{COST_LOW_AMOUNT_OR_NA}} | {{COST_MID_AMOUNT_OR_NA}} | {{COST_HIGH_AMOUNT_OR_NA}} | {{NOTE}} |
 
 ## 7. 报价汇总
 
@@ -86,11 +86,11 @@
 
 ## 8. 付款节点
 
+付款方式必须来自双方实际商务约定。免费交付、内部项目、不涉及付款或单次结算时填 `N/A` / 单节点，不强制首付款、阶段款和尾款。
+
 | 节点 | 触发条件 | 比例 / 金额 | 交付物 | 验收条件 |
 |------|----------|-------------|--------|----------|
-| 首付款 | 合同签署 | {{PAYMENT_RATIO_OR_AMOUNT}} | {{DELIVERABLE}} | {{ACCEPTANCE_CONDITION}} |
-| 阶段款 | {{MILESTONE_CONDITION}} | {{PAYMENT_RATIO_OR_AMOUNT}} | {{DELIVERABLE}} | {{ACCEPTANCE_CONDITION}} |
-| 尾款 | 最终验收通过 | {{PAYMENT_RATIO_OR_AMOUNT}} | {{DELIVERABLE}} | {{ACCEPTANCE_CONDITION}} |
+| {{PAYMENT_MILESTONE_OR_NA}} | {{PAYMENT_TRIGGER_OR_NA}} | {{PAYMENT_RATIO_OR_AMOUNT_OR_NA}} | {{DELIVERABLE_OR_NA}} | {{ACCEPTANCE_CONDITION_OR_NA}} |
 
 ## 9. 变更计费
 

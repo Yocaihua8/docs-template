@@ -1,0 +1,4 @@
+profile	packs	description
+personal	core	最小个人项目基线，不强制任务台账、DevLog、PR、Reviewer、CI 或文件式 AI plan
+commercial	core;requirements;tracking;commercial;security;tooling	商业项目交付准备基线，不默认假设多人团队、版本发布、架构模式或具体技术形态
+open-source	core;tracking;open-source;security;tooling	开源项目社区协作基线，包含贡献、安全、治理和许可证决策入口，架构与版本发布按需启用

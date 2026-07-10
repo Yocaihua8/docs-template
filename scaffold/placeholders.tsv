@@ -1,0 +1,51 @@
+token	required	packs	profiles	default	tbd	description
+{{PROJECT_NAME}}	true	core	*		TBD	项目正式名称
+{{PROJECT_DESCRIPTION}}	false	core	*		TBD	一句话项目定位与价值说明
+{{PROJECT_TYPE}}	false	core	*		TBD	项目类型，例如 CLI、Web 后端、全栈、桌面端或库
+{{PHASE}}	false	core	*		TBD	当前阶段，例如原型、MVP、生产或维护
+{{TARGET_USERS}}	false	core	*		TBD	主要用户或使用方
+{{OWNER}}	true	core	*		TBD	文档或项目负责人
+{{CURRENT_DATE}}	true	core	*		TBD	ISO 8601 日期
+{{RELEASE_VERSION}}	false	release-support	*	Unreleased	TBD	当前版本或待发布版本
+{{LANGUAGE}}	false	core	*		TBD	主要编程语言
+{{FRAMEWORK}}	false	core	*		N/A	主要框架
+{{DATABASE}}	false	data	*		N/A	数据库或持久化方案
+{{BUILD_TOOL}}	false	core	*		N/A	构建工具
+{{TEST_FRAMEWORK}}	false	tooling	*		TBD	测试框架
+{{PACKAGE_MANAGER}}	false	core	*		N/A	包管理器
+{{SRC_DIR}}	false	core	*		TBD	生产代码根目录
+{{TEST_DIR}}	false	tooling	*		TBD	测试代码根目录
+{{INSTALL_COMMAND}}	false	core	*		TBD	依赖安装命令
+{{SOURCE_FETCH_COMMAND}}	false	core	*	N/A	N/A	源码或发布包获取命令
+{{ENV_INIT_COMMAND}}	false	core	*		N/A	环境变量初始化命令
+{{OPTIONAL_INIT_COMMAND}}	false	core	*	N/A	N/A	其他初始化命令
+{{DEV_COMMAND}}	false	core	*		TBD	本地开发启动命令
+{{BUILD_COMMAND}}	false	core	*		N/A	构建命令
+{{TEST_ALL_COMMAND}}	false	core	*		TBD	全量测试命令
+{{TEST_UNIT_COMMAND}}	false	tooling	*		N/A	单元测试命令
+{{LINT_COMMAND}}	false	tooling	*		N/A	代码检查命令
+{{FORMAT_COMMAND}}	false	tooling	*		N/A	格式化命令
+{{MIGRATE_COMMAND}}	false	data;migration	*		N/A	数据库或数据迁移命令
+{{GITHUB_OWNER}}	true	github	*			带 @ 前缀的 GitHub 用户或团队
+{{CLIENT_OR_PROJECT_NAME}}	false	commercial	*		TBD	商业交付中的客户或项目名称
+{{TECH_LEAD}}	false	commercial;team	*		TBD	技术负责人
+{{LICENSE_SPDX_ID}}	false	open-source	*		TBD	经确认的 SPDX 许可证标识
+{{LICENSE_FULL_NAME}}	false	open-source	*		TBD	经确认的许可证全称
+{{COPYRIGHT_HOLDER}}	false	open-source	*		TBD	许可证版权主体
+{{PRIMARY_MAINTAINER}}	false	open-source	*		TBD	开源项目主要维护者
+{{SECURITY_OWNER}}	false	security;open-source	*		TBD	安全问题负责人
+{{RELEASE_OWNER}}	false	release-support;open-source	*		TBD	发布负责人
+{{SECURITY_REPORT_URL}}	false	open-source;github	*		TBD	私密安全问题上报地址
+{{SUPPORT_CHANNEL_URL}}	false	commercial;open-source;github	*		TBD	支持或咨询渠道地址
+{{SECURITY_CONTACT_EMAIL}}	false	security	*		TBD	安全漏洞私密联系邮箱
+{{SECURITY_ACK_TARGET}}	false	security	*		TBD	安全报告确认收到的响应目标
+{{SECURITY_ASSESSMENT_TARGET}}	false	security	*		TBD	安全问题初步评估目标
+{{HIGH_SEVERITY_FIX_TARGET}}	false	security	*		TBD	高危问题修复或缓解目标
+{{SUPPORTED_VERSIONS_POLICY}}	false	security	*		TBD	获得安全更新的版本范围
+{{REPORTING_CHANNEL}}	false	open-source	*		TBD	行为问题私密报告渠道
+{{ENFORCEMENT_TEAM}}	false	open-source	*		TBD	行为准则执行人员或团队
+{{RESPONSE_TARGET}}	false	open-source	*		TBD	行为问题首次响应目标
+{{APPEAL_CHANNEL}}	false	open-source	*		TBD	行为准则处理结果复核渠道
+{{CONFIRMATION_DATE}}	false	commercial	*		TBD	客户或双方实际确认日期，不使用初始化日期代替
+{{ACCEPTANCE_DATE}}	false	commercial	*		TBD	实际验收或签收日期，不使用初始化日期代替
+{{MILESTONE_DUE_DATE}}	false	requirements;tracking	*		TBD	阶段或版本里程碑目标日期

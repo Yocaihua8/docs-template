@@ -2,7 +2,7 @@
 
 > 状态：Draft
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 
@@ -11,12 +11,12 @@
 本清单为发布前自查的**权威源**，`../../CHANGELOG.md § 预发布检查清单` 仅补充与 CHANGELOG 本身相关的额外项。
 
 - [ ] 主流程可运行
-- [ ] 测试通过（单元 / 接口 / 人工回归按 `testing.md` 要求）
-- [ ] 文档同步完成（需求 / 设计 / 功能 / ADR 按 `../../CONTRIBUTING.md § 6` 要求）
+- [ ] 测试通过；若已启用 `testing.md`，按其中策略执行，否则记录本项目实际验证方式
+- [ ] 文档同步完成；若已启用 `../../CONTRIBUTING.md`，按其文档联动规则执行，否则按本项目现有文档约定核对
 - [ ] `../../CHANGELOG.md` 已整理，且满足 `../../CHANGELOG.md § 预发布检查清单`
-- [ ] 风险项已评估（对照 `../design/risk-register.md`）
-- [ ] 破坏性变更已写入 `../design/api-changes.md`（若有）
-- [ ] 版本号与 Tag 规划确定（遵循 `style-guide.md § 13.1`）
+- [ ] 风险项已评估；若已启用 `../design/risk-register.md`，同步更新对应风险项
+- [ ] 若已启用 API pack 且存在对外 API 破坏性变更，已更新 `../design/api-changes.md`；未启用时不作硬性要求
+- [ ] 版本号与 Tag 规划确定（遵循 `../style-guide.md § 13.1`）
 
 ## 2. 发布步骤
 
@@ -37,7 +37,7 @@
 
 | 版本 | 日期 | 发布人 | 说明 |
 |------|------|--------|------|
-| {{VERSION}} | {{YYYY-MM-DD}} | {{RELEASER}} | {{DESCRIPTION}} |
+| {{RELEASE_VERSION}} | {{CURRENT_DATE}} | {{RELEASER}} | {{DESCRIPTION}} |
 
 ## 附录：填写示例
 
