@@ -418,8 +418,10 @@ try {
 
     Write-Host "==> fail conflicts are zero-write"
     $conflictTarget = Join-Path $tempRoot "fail-conflict"
-    New-Item -ItemType Directory -Path (Join-Path $conflictTarget "docs") -Force | Out-Null
-    Set-Content -LiteralPath (Join-Path $conflictTarget "docs\README.md") -Value "user-owned" -NoNewline -Encoding UTF8
+    $conflictDocs = Join-Path $conflictTarget "docs"
+    $conflictReadme = Join-Path $conflictDocs "README.md"
+    New-Item -ItemType Directory -Path $conflictDocs -Force | Out-Null
+    Set-Content -LiteralPath $conflictReadme -Value "user-owned" -NoNewline -Encoding UTF8
     $conflict = Invoke-InitializerPowerShell @(
         "-Target", $conflictTarget,
         "-ProjectName", "demo",
@@ -429,7 +431,7 @@ try {
     )
     Assert-True ($conflict.ExitCode -eq 3) $conflict.Output
     $conflictFiles = @(Get-ChildItem -LiteralPath $conflictTarget -Recurse -File)
-    Assert-True ($conflictFiles.Count -eq 1 -and $conflictFiles[0].FullName.EndsWith("docs\README.md")) "Conflict handling wrote additional files."
+    Assert-True ($conflictFiles.Count -eq 1 -and $conflictFiles[0].FullName -ceq [System.IO.Path]::GetFullPath($conflictReadme)) "Conflict handling wrote additional files."
     Assert-True ((Get-Content -LiteralPath $conflictFiles[0].FullName -Raw) -eq "user-owned") "Conflict handling changed docs/README.md."
 
     Write-Host "==> preserve conflicts remain unmanaged and discoverable"
