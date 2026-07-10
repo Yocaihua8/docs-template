@@ -2,7 +2,7 @@
 
 > 状态：Active
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 
 本文档定义项目文档的统一写法，用于保证不同项目、不同阶段、不同作者输出的文档保持一致风格。
 
@@ -22,24 +22,24 @@
 一份文档只解决一个核心问题。例如：
 
 - 接口文档只写接口
-- 数据库设计只写表结构与关系
+- 存储或数据库设计（若项目使用）只写数据结构与关系
 - 风险文档只写风险与缓解措施
 
 ### 1.3 当前事实与未来计划分离
 
 - **当前已确定/已实现**：写进正式文档
-- **未来考虑/候选方案/待验证点**：写进 `BACKLOG.md` 或 ADR
+- **未来考虑/候选方案/待验证点**：启用 `tracking` pack 时写进 `BACKLOG.md`；未启用时写入项目实际采用的 Issue 或任务入口；若启用了 `architecture` pack 且属于架构决策，再写入 ADR
 
 ## 2. 统一头部模板
 
-除 `CHANGELOG.md` 外，建议每份文档顶部统一加：
+建议每份文档顶部统一加以下字段；启用 `release-support` pack 时生成的 `CHANGELOG.md` 可沿用其专用格式：
 
 ```markdown
 # {{DOC_TITLE}}
 
 > 状态：Draft / In Review / Active / Deprecated / Archived
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 ```
@@ -48,7 +48,7 @@
 
 ### 2.1 例外
 
-- **索引 / 导航型 README**（如 `docs/README.md`、`docs/adr/README.md`、`docs/features/README.md`、`docs/devlog/README.md`）**可省略** `Scope` 与 `Related` 字段：这类文档本身就是目录索引，Scope 等于"整个子目录"，Related 等于"目录下全部文件"，再填反而冗余。
+- **索引 / 导航型 README**（如 `docs/README.md`、`docs/features/README.md`、`docs/devlog/README.md`，以及启用 `architecture` pack 时生成的 `docs/adr/README.md`）**可省略** `Scope` 与 `Related` 字段：这类文档本身就是目录索引，Scope 等于"整个子目录"，Related 等于"目录下全部文件"，再填反而冗余。
 - 但 `状态 / Owner / Last Updated` 三项**必须**保留。
 
 ## 3. 占位符规范
@@ -76,7 +76,7 @@
 ```markdown
 > Owner：{{OWNER}}
 > Reviewer：{{REVIEWER}}（可选）
-> Related ADR：{{ADR_ID}}（若涉及架构决策则必填）
+> Related ADR：{{ADR_ID}}（启用 `architecture` pack 且涉及架构决策时必填）
 ```
 
 ### 3.3 常用占位符参考
@@ -86,9 +86,11 @@
 | `{{PROJECT_NAME}}` | 项目名 | `order-service` |
 | `{{MODULE_NAME}}` | 模块名 | `payment` |
 | `{{OWNER}}` | 责任人 | `张三` |
-| `{{YYYY-MM-DD}}` | 日期 | `2026-04-17` |
-| `{{VERSION}}` | 版本号 | `v1.2.0` |
-| `{{ADR_ID}}` | ADR 编号 | `ADR-007` |
+| `{{CURRENT_DATE}}` | 日期（`YYYY-MM-DD`） | `2026-04-17` |
+| `{{CURRENT_LOCAL_DATETIME}}` | 本地日期时间（`YYYY-MM-DD HH:MM`） | `2026-04-17 14:30` |
+| `{{CURRENT_ISO_WEEK}}` | ISO 周标识 | `2026-W16` |
+| `{{RELEASE_VERSION}}` | 发布版本号（启用 `release-support` pack 时） | `v1.2.0` |
+| `{{ADR_ID}}` | ADR 编号（启用 `architecture` pack 时） | `ADR-007` |
 | `{{MILESTONE_NAME}}` | 里程碑名称 | `v1.0-发布` |
 
 ### 3.4 模板填写示例约定
@@ -101,6 +103,13 @@
 - 示例中的项目名、角色名、日期等**应该**使用脱敏占位（如 `示例项目`、`张三`、`2026-04-17`），不要使用真实内部代号
 - 示例条目不使用 `{{XXX}}` 占位符，展示真实填写后的效果
 - 对于规格极小、自解释的模板（如 `README.md`、`style-guide.md` 本身），可不附示例
+
+### 3.5 初始化与残留检查
+
+- 脚手架初始化器只自动替换已声明的项目级元数据，不猜测接口、业务规则、账号或技术决策。
+- 活动文档中的未知事实使用 `TBD`，明确不适用的内容使用 `N/A`；不要用虚构事实让检查通过。
+- `features/feature-template.md`，以及启用 `architecture` pack 时生成的 `adr/ADR-000-template.md` 等可复用模板，可以保留合法占位符；实际创建文档时应复制并重命名，再填写真实内容。
+- 初始化后的活动文档不得残留双花括号、残缺花括号或未替换的仓库账号标记；保留下来的可复用模板仍须使用合法的 SCREAMING_SNAKE_CASE token。
 
 ## 4. 标题层级规范
 
@@ -141,7 +150,7 @@
 适合用表格的内容：
 
 - 字段说明
-- 权限矩阵
+- 权限矩阵（项目存在访问控制时）
 - 状态流转
 - 风险清单
 - 版本变更
@@ -194,7 +203,7 @@ transition(task, Running)
 createExportTask(filter)
 ```
 
-禁止在示例中保留大段注释掉的废弃代码。技术债、长期 TODO 和已知问题应写入 `BACKLOG.md` 或对应设计文档。
+禁止在示例中保留大段注释掉的废弃代码。技术债、长期 TODO 和已知问题在启用 `tracking` pack 时写入 `BACKLOG.md`；未启用时写入项目实际采用的 Issue、任务入口或对应设计文档。
 
 ## 9. 状态与规则表达
 
@@ -210,10 +219,10 @@ createExportTask(filter)
 - 使用英文 `kebab-case`
 - 文件名体现主题，不使用 `new-doc.md`、`temp.md`
 - 示例：
-  - `api-spec.md`
-  - `database-design.md`
-  - `risk-register.md`
-  - `feature-template.md`
+  - `guides/setup.md`
+  - `features/feature-overview.md`
+  - `design/risk-register.md`
+  - `features/feature-template.md`
 
 ## 11. 图表与链接规范
 
@@ -237,14 +246,16 @@ flowchart LR
 
 ### 11.2 内部链接
 
-- 跨文档引用**必须**使用相对路径：`design/api-spec.md`，不使用绝对路径或仓库 URL
-- 锚点**必须**使用 Markdown 生成的小写 kebab-case：`design/api-spec.md#user-login`
-- 每次大改后**应该**运行死链检查（如 `lychee`、`markdown-link-check`）
+- 跨文档引用**必须**使用相对路径：`features/user-auth.md`，不使用绝对路径或仓库 URL
+- 锚点**必须**使用 Markdown 生成的小写 kebab-case：`features/user-auth.md#error-handling`
+- 启用 `tooling` pack 时，每次大改后**必须**运行随项目生成的本地链接检查：`pwsh scripts/check-doc-links.ps1` 或 `bash scripts/check-doc-links.sh`；未启用时使用项目已有检查工具，或人工确认本次新增、修改的相对路径
+- 链接路径的大小写必须与磁盘文件一致，避免在 Windows 可用、Linux CI 失效
+- 本地文件、图片和标题 anchor 必须存在；外部 HTTP(S) 链接可由项目按需增加独立联网检查
 
 ### 11.3 外部链接
 
 - 外部链接**必须**带完整协议：`https://example.com`
-- 易变的外部内容（博客、临时页）**应该**注明访问日期：`https://... （访问于 {{YYYY-MM-DD}}）`
+- 易变的外部内容（博客、临时页）**应该**注明访问日期：`https://... （访问于 {{CURRENT_DATE}}）`
 
 ## 12. 架构与页面表达约定
 
@@ -252,28 +263,43 @@ flowchart LR
 
 ### 12.1 页面线框图
 
-- 页面结构说明**应该**统一写入 `design/ui-wireframes.md`
+本小节仅适用于包含页面或可视化界面的项目；CLI、库、纯脚本或无 UI 服务可跳过。
+
+- 启用相应 UI 设计文档时，页面结构说明**应该**统一写入 `design/ui-wireframes.md`
 - 页面线框图**应该**使用 ```` ```text ```` 代码块表达主布局，不要求几何精确，但要求语义稳定、可读
 - 若页面存在多个主要区域，**应该**直接写清每个区域的名称、职责与主交互流向
 - 弹窗、抽屉、浮层等次级结构写入"关键交互"，不要冒充主布局区块
+- 同时启用 `team` 与 `frontend` pack 且多人并行开发同一页面时，页面模块顺序、`data-*` 标识、允许修改文件和页面验收测试口径**应该**写入 `design/page-module-contract.md`
+- 同时启用 `team` 与 `frontend` pack 且多人并行开发同一组件时，组件职责、props、emits、slots、CSS class 前缀和 mock 数据依赖**应该**写入 `design/component-api-contract.md`
 
-### 12.2 架构设计表达
+### 12.2 前端命名与定位标识
 
+本小节仅适用于包含前端页面或组件的项目；不包含前端的项目可跳过。
+
+- 页面模块标识使用稳定业务语义，建议 kebab-case，例如 `service-list`、`technician-list`
+- `data-*` 只用于测试定位、截图定位和关键交互定位，不用于样式选择器
+- 页面模块容器建议使用 `data-{{PAGE_KEY}}-panel="{{MODULE_KEY}}"`，例如 `data-home-panel="service-list"`
+- 组件私有 CSS class 必须有稳定前缀，避免 `.card`、`.title` 这类跨模块易冲突命名
+- 公共样式文件只放 reset、设计 token、基础变量和跨页面通用能力，不放单个模块的私有样式
+
+### 12.3 架构设计表达
+
+- 本小节仅在启用 `architecture` pack 时适用；未启用时不要求创建架构文档或 ADR
 - 总体架构说明**应该**统一写入 `design/architecture-overview.md`
-- 文档中统一使用 `三层架构` 表示 `表现层 / 业务层 / 数据层`，避免使用含义不稳定的"`三分架构`"表述
+- 若项目采用三层架构，统一使用 `三层架构` 表示 `表现层 / 业务层 / 数据层`，避免使用含义不稳定的"`三分架构`"表述
 - 若系统采用 `三层架构`，**必须**写清表现层、业务层、数据层的边界与依赖方向
 - 若系统采用 `六边形架构`，**必须**写清核心领域、输入端口、输出端口、输入适配器、输出适配器
 - 六边形架构中，领域核心**必须**不直接依赖数据库、HTTP 框架、消息队列、第三方 SDK
 - 端口与适配器关系**应该**用表格或 Mermaid 表达，避免只写概念、不写落点
-- 采用或切换 `三层架构`、`六边形架构` 时，**应该**同步新增或更新 ADR，说明原因、边界和迁移策略
+- 采用、切换或实质性调整架构模式时，**应该**同步新增或更新 ADR，说明原因、边界和迁移策略
 
 ## 13. 数值与版本表达
 
 ### 13.1 版本号
 
-- 语义化版本统一写作 `v{major}.{minor}.{patch}`，例如 `v1.2.0`
-- 预发布版本用 `-` 分隔：`v1.2.0-rc.1`
-- API 版本在 URL 中用 `v1`、`v2`，文档正文引用时统一为 `API v1`
+- 项目发布语义化版本时，统一写作 `v{major}.{minor}.{patch}`，例如 `v1.2.0`
+- 存在预发布版本时用 `-` 分隔：`v1.2.0-rc.1`
+- 对外提供带版本 API 时，URL 中用 `v1`、`v2`，文档正文引用时统一为 `API v1`
 
 ### 13.2 长度与容量
 
@@ -300,5 +326,5 @@ flowchart LR
 - 文档长期无人维护时标记 `Deprecated` 或 `Archived`
 - 评审通过后的文档尽量减少随意改动
 - 标记为 `Deprecated` 的文档**应该**在头部补充：
-  - `> Deprecated since：{{YYYY-MM-DD}}`
+  - `> Deprecated since：{{CURRENT_DATE}}`
   - `> Replaced by：{{REPLACEMENT_DOC_PATH}}`（若有替代文档）

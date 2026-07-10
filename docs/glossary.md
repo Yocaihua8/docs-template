@@ -2,7 +2,7 @@
 
 > 状态：Active
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 
@@ -37,7 +37,7 @@
 
 | 旧术语 | 替代术语 | 废弃时间 | 废弃原因 |
 |--------|----------|----------|----------|
-| {{OLD_TERM}} | {{NEW_TERM}} | {{YYYY-MM-DD}} | {{REASON}} |
+| {{OLD_TERM}} | {{NEW_TERM}} | {{CURRENT_DATE}} | {{REASON}} |
 
 ## 附录：填写示例
 

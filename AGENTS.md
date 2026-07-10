@@ -18,12 +18,12 @@
 
 | 类型 | 名称 | 版本 | 说明 |
 |------|------|------|------|
-| 语言 | {{LANGUAGE}} | {{VERSION}} | - |
-| 框架 | {{FRAMEWORK}} | {{VERSION}} | - |
-| 数据库 | {{DATABASE}} | {{VERSION}} | - |
-| 构建工具 | {{BUILD_TOOL}} | {{VERSION}} | - |
-| 测试框架 | {{TEST_FRAMEWORK}} | {{VERSION}} | - |
-| 包管理器 | {{PACKAGE_MANAGER}} | {{VERSION}} | - |
+| 语言 | {{LANGUAGE}} | {{LANGUAGE_VERSION}} | - |
+| 框架 | {{FRAMEWORK}} | {{FRAMEWORK_VERSION}} | - |
+| 数据库 | {{DATABASE}} | {{DATABASE_VERSION}} | - |
+| 构建工具 | {{BUILD_TOOL}} | {{BUILD_TOOL_VERSION}} | - |
+| 测试框架 | {{TEST_FRAMEWORK}} | {{TEST_FRAMEWORK_VERSION}} | - |
+| 包管理器 | {{PACKAGE_MANAGER}} | {{PACKAGE_MANAGER_VERSION}} | - |
 
 ## 3. 目录速查
 
@@ -31,7 +31,7 @@
 |------|------|
 | `{{SRC_DIR}}/` | 生产代码根目录 |
 | `{{TEST_DIR}}/` | 测试代码根目录 |
-| `docs/requirements/` | 需求背景、功能范围、MVP 定义 |
+| `docs/requirements/` | 需求背景、功能范围、阶段 / 版本范围冻结 |
 | `docs/design/` | 架构、接口、数据库、权限、状态流 |
 | `docs/features/` | 各功能模块规格（每个功能一份） |
 | `docs/adr/` | 架构决策记录 |

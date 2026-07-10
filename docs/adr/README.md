@@ -2,7 +2,7 @@
 
 > 状态：Active
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 
 ADR（Architecture Decision Record）用于记录重要架构决策，重点不是“做了什么”，而是“为什么这样做”。
 

@@ -2,7 +2,7 @@
 
 > 状态：Draft
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 
@@ -21,7 +21,7 @@
 | 功能开发 | `feature/<description>` | `feature/login-page` |
 | 问题修复 | `fix/<description>` | `fix/token-expired` |
 | 重构 | `refactor/<description>` | `refactor/order-service` |
-| 文档 | `docs/<description>` | `docs/api-spec` |
+| 文档 | `docs/<description>` | `docs/update-guide` |
 | 维护 | `chore/<description>` | `chore/upgrade-deps` |
 
 ## 3. 提交信息规范
@@ -45,11 +45,11 @@
 ## 4. 合并规则
 
 - 是否允许直接推送主分支：{{ALLOW_DIRECT_PUSH}}（建议：否）
-- 是否要求 PR：必须通过 PR，除非是紧急生产止血且事后补 PR / 记录
+- 是否要求 PR：按项目治理方式确定；启用 PR 流程时，除紧急修复外均通过 PR，并为紧急修复补充记录
 - 最少 Review 人数：{{MIN_REVIEW_COUNT}}（建议：至少 1 人；高风险改动至少 2 人）
-- 是否要求 CI 通过：CI 必须通过，禁止跳过校验合并
+- 是否要求 CI 通过：已配置 CI 时必须通过；未配置时记录实际人工验证方式和结果
 - 是否要求 Code Review：必须完成阻塞评论处理，非阻塞建议需给出处理结论
-- 是否要求 CODEOWNERS：建议启用 Require review from Code Owners，确保模块 Owner 或默认 Reviewer 被请求评审
+- 是否要求 CODEOWNERS：仅在启用 `github` pack 并生成 `.github/CODEOWNERS` 时适用；启用后建议要求模块 Owner 或默认 Reviewer 参与评审
 - 合并方式：Merge / Squash / Rebase 由项目统一选择，不在单个 PR 中临时切换
 
 ### 4.1 分支保护建议
@@ -58,10 +58,10 @@
 
 - Require pull request reviews before merging
 - Require status checks to pass before merging
-- Require review from Code Owners
+- Require review from Code Owners（仅在 `.github/CODEOWNERS` 已启用时）
 - Restrict direct pushes
 
-以上规则用于保证所有变更先经过 PR、Review、CODEOWNERS 和 CI。仓库文件只能提供模板和说明，实际保护规则需要在托管平台中配置。
+以上规则按项目实际启用的 PR、Review、CODEOWNERS 和 CI 能力组合使用。仓库文件只能提供模板和说明，实际保护规则需要在托管平台中配置。
 
 ## 5. 合并方式选择
 
@@ -90,5 +90,6 @@
 - 同一模块冲突由模块 Owner 协调合并顺序。
 - 架构边界、接口契约、数据库、权限或状态机冲突由 Tech Lead 裁决。
 - 无法自动合并时，禁止用覆盖式提交吞掉他人改动；必须逐项确认冲突块来源。
-- 冲突处理结论应记录在 PR 评论、plan § 5.2 或 `docs/devlog/YYYY/MM/` 中。
-- PR 创建前应完成并行冲突扫描：检查 Active / Interrupted plan、同模块未合并 PR 和 CODEOWNERS 命中的默认 Reviewer。
+- 冲突处理结论写入实际启用的协作入口；若启用了 PR、文件式 plan 或 DevLog，可分别记录在 PR 评论、plan § 5.2 或 `docs/devlog/YYYY/MM/`。
+- 启用 PR 流程时，创建前检查同模块未合并 PR；仅在启用 ai-planning pack 或 `.github/CODEOWNERS` 时，再检查 Active / Interrupted plan 或默认 Reviewer。
+- 若启用了 team pack 与 `merge-conflict-playbook.md`，页面或组件并行开发的高频冲突按该手册处理；未启用时，由项目现有负责人逐项确认冲突来源和合并顺序。

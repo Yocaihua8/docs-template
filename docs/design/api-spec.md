@@ -2,7 +2,7 @@
 
 > 状态：Draft
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
 
@@ -12,6 +12,15 @@
 - 请求参数命名统一
 - 响应结构统一
 - 错误码可枚举、可追踪
+
+## 1.1 与接入手册的边界
+
+| 文档 | 面向 | 职责 |
+|------|------|------|
+| `api-spec.md` | API 实现方 + 调用方 | 接口契约权威源：路径、方法、字段、错误码、权限、响应结构 |
+| `../guides/integration-guide-template.md` | 面向调用方 | 说明如何接入、配置环境、处理认证、联调、排错，不重复维护接口权威字段 |
+
+如果两者冲突，以 `api-spec.md` 为准；接入手册应链接到本文件对应接口，而不是复制一份长期漂移的契约。
 
 ## 2. 认证与鉴权
 

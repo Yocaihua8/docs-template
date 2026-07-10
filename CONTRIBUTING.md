@@ -21,10 +21,10 @@
 
 | 工具 | 版本 | 用途 | 是否必需 |
 |------|------|------|----------|
-| {{RUNTIME_1}} | {{VERSION}} | {{PURPOSE}} | 是 |
-| {{RUNTIME_2}} | {{VERSION}} | {{PURPOSE}} | 是 |
-| {{DATABASE}} | {{VERSION}} | {{PURPOSE}} | 按需 |
-| {{OTHER_TOOL}} | {{VERSION}} | {{PURPOSE}} | 按需 |
+| {{RUNTIME_1}} | {{RUNTIME_1_VERSION}} | {{PURPOSE}} | 是 |
+| {{RUNTIME_2}} | {{RUNTIME_2_VERSION}} | {{PURPOSE}} | 是 |
+| {{DATABASE}} | {{DATABASE_VERSION}} | {{PURPOSE}} | 按需 |
+| {{OTHER_TOOL}} | {{OTHER_TOOL_VERSION}} | {{PURPOSE}} | 按需 |
 
 ---
 
@@ -141,6 +141,9 @@ chore/<description>      维护与配置
 - 页面负责组合与渲染，业务逻辑放在 hooks / composables / services
 - API 请求统一封装，避免散落在多个页面中
 - 表单校验、加载状态、空状态、错误状态必须明确
+- 多人并行修改同一页面前，应先维护 `docs/design/page-module-contract.md`，明确页面模块顺序、`data-*` 标识、允许修改文件和页面验收测试口径
+- 多人并行修改同一组件前，应先维护 `docs/design/component-api-contract.md`，明确组件职责、props、emits、slots、CSS class 前缀和 mock 数据依赖
+- 公共样式文件默认不承载模块私有样式；确需修改时必须在 PR 中说明原因和影响范围
 
 ---
 
@@ -167,6 +170,7 @@ chore/<description>      维护与配置
 - 影响范围已初步识别，包括接口、数据库、权限、页面、模块边界
 - 负责人、默认 Reviewer 和需要咨询的角色已明确
 - 存在多人并行风险时，已确认文件/模块锁定或分区方案
+- 前端页面或组件并行开发时，已确认页面模块契约或组件 API 契约
 - 已完成并行冲突扫描：Active / Interrupted plan、同模块未合并 PR、CODEOWNERS 命中的默认 Reviewer
 
 ### Definition of Done
@@ -178,7 +182,7 @@ chore/<description>      维护与配置
 - CI 已通过，或已在 PR 中说明无法运行的原因和本地替代验证
 - CODEOWNERS Review 已触发；若 N/A，已在 PR 中说明原因
 - 文档已按 § 6 同步，或明确说明不需要更新文档的理由
-- `CHANGELOG.md` 已按发布影响更新到 `Unreleased`
+- `CHANGELOG.md` 已按发布影响更新到 `Unreleased`；若不产生发布影响，已在 PR 中说明 N/A
 - PR 中的阻塞评论已处理，非阻塞评论已有结论
 - 新增已知问题、风险或技术债已写入 `docs/BACKLOG.md`
 
@@ -208,6 +212,8 @@ chore/<description>      维护与配置
 
 ## 7. Pull Request 流程
 
+> 贡献规范详情可从 `docs/guides/contributor-guide-template.md` 扩展；该模板用于补充贡献类型、环境准备、Issue / PR 流程、测试、变更记录和 Review 期望。
+
 ### 提交前自查
 
 - [ ] 目标功能已完成并可验证
@@ -228,6 +234,7 @@ Reviewer 应重点检查：
 - 测试是否覆盖核心规则、边界条件和失败路径
 - 文档、BACKLOG、CHANGELOG、ADR 是否按影响范围同步
 - 是否存在硬编码密钥、调试代码、无关重构或大范围格式化噪声
+- 前端页面或组件变更是否遵守页面模块契约、组件 API 契约和公共样式边界
 
 Review 结论分为：
 
@@ -246,6 +253,7 @@ Review 结论分为：
 - 文件/模块锁定解除条件：相关 PR 合并或关闭，且 BACKLOG / plan 状态已同步。
 - GitHub 项目应通过 `.github/CODEOWNERS` 触发默认 Reviewer，但 CODEOWNERS 不替代 PR 中的影响范围、锁定范围和冲突扫描说明。
 - 未完成并行冲突扫描、未说明高风险变更 Review 安排、或绕过 CODEOWNERS 的 PR，应视为阻塞问题。
+- 页面复刻、首页改版或组件并行开发的冲突处理，优先参考 `docs/guides/merge-conflict-playbook.md`。
 
 ### PR 模板
 
@@ -277,15 +285,40 @@ Review 结论分为：
   - [ ] 否
   - [ ] 是，已安排至少 2 人 Review，说明：
 
+## AI 修改说明
+- 是否使用 AI 编程：
+  - [ ] 否
+  - [ ] 是，主要提示词 / 指令摘要：
+- 实际修改文件：
+- 是否越过文件边界：
+  - [ ] 否
+  - [ ] 是，已说明原因并更新契约：
+- 是否新增命名（模块名、CSS class、`data-*`、测试 ID）：
+  - [ ] 否
+  - [ ] 是，新增项：
+- 是否修改公共样式：
+  - [ ] 否
+  - [ ] 是，文件与原因：
+- 是否修改组件 API（props / emits / slots / payload）：
+  - [ ] 否
+  - [ ] 是，关联 `component-api-contract.md`：
+- 截图：
+  - [ ] 已提供关键页面截图
+  - [ ] N/A，原因：
+
 ## 测试验证
 - [ ] 单元测试通过
 - [ ] 主流程验证通过
 - [ ] 关键边界场景已检查
+- [ ] type-check 通过，或已说明无法运行的原因
+- [ ] build 通过，或已说明无法运行的原因
 - [ ] CI 通过，或已说明无法运行的原因
 
 ## 关联文档
 - 需求文档：...
 - 功能文档：...
+- 页面模块契约：...
+- 组件 API 契约：...
 - ADR：...
 
 ## 已知限制
@@ -293,7 +326,7 @@ Review 结论分为：
 
 ## 自查清单
 - [ ] 文档已同步更新（对照 `CONTRIBUTING.md § 6`）
-- [ ] `CHANGELOG.md` 已更新到 `Unreleased`
+- [ ] `CHANGELOG.md` 已更新到 `Unreleased`，或已说明不产生发布影响
 - [ ] 若触发 `docs/README.md § 4` 的强制条件，已提交 ADR
 - [ ] 若涉及对外 API 破坏性变更，已更新 `docs/design/api-changes.md`
 - [ ] 未绕过模块边界、层边界或既有端口 / 适配器边界

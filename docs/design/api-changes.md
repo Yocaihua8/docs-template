@@ -2,9 +2,9 @@
 
 > 状态：Active
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
-> Related：`api-spec.md`、`../../CHANGELOG.md`
+> Related：`api-spec.md`；启用 `release-support` pack 时再关联 `../../CHANGELOG.md`
 
 专门记录**对外 API 的兼容性变化与迁移指南**，面向接口使用方（前端、第三方、合作方）。
 
@@ -12,11 +12,11 @@
 
 | 文档 | 面向 | 粒度 | 关注点 |
 |------|------|------|--------|
-| `../../CHANGELOG.md` | 全体使用者/维护者 | 版本整体变更 | 结果 |
+| `../../CHANGELOG.md`（启用 `release-support` pack 时） | 全体使用者/维护者 | 版本整体变更 | 结果 |
 | `api-spec.md` | API 使用方 + 实现方 | 当前接口契约 | **权威源**：字段、错误码、响应结构 |
 | `api-changes.md`（本文件） | API 使用方 | 单个接口 × 版本 | 迁移方式、兼容策略、弃用时间 |
 
-**职责切分**：接口**契约**以 `api-spec.md` 为权威；接口**变更与迁移**以本文件为权威。两者互相引用，不重复写对方的内容。
+**职责切分**：接口**契约**以 `api-spec.md` 为权威；接口**变更与迁移**以本文件为权威。两者互相引用，不重复写对方的内容。若启用 `release-support` pack，再把面向版本使用者的结果摘要同步到 `../../CHANGELOG.md`。
 
 ## 2. 变更分级
 
@@ -50,7 +50,7 @@
 
 | 接口 / 字段 | 弃用宣布 | 停止维护 | 下线日期 | 替代方案 |
 |-------------|----------|----------|----------|----------|
-| `GET /v0/orders` | {{YYYY-MM-DD}} | {{YYYY-MM-DD}} | {{YYYY-MM-DD}} | `GET /v1/orders` |
+| `GET /v0/orders` | {{CURRENT_DATE}} | {{CURRENT_DATE}} | {{CURRENT_DATE}} | `GET /v1/orders` |
 
 ## 6. 迁移指南模板
 

@@ -2,9 +2,20 @@
 
 > 状态：Draft
 > Owner：{{OWNER}}
-> Last Updated：{{YYYY-MM-DD}}
+> Last Updated：{{CURRENT_DATE}}
 > Scope：{{SCOPE}}
 > Related：{{RELATED_DOCS}}
+
+本文档只在项目存在业务状态、任务生命周期、审批流、发布状态或其他有限状态流转时启用。若只有无状态计算或简单 CRUD，应删除本文件或将状态部分明确标为 `N/A`，不要为了套模板虚构状态机。
+
+## 0. 适用性
+
+| 项目 | 内容 |
+|------|------|
+| 是否存在需要约束的状态 / 生命周期 | 是 / 否 |
+| 状态对象 | {{OBJECT_NAME_OR_NA}} |
+| 状态权威来源 | {{STATE_SOURCE_OF_TRUTH_OR_NA}} |
+| 不适用说明 | {{NOT_APPLICABLE_REASON_OR_NA}} |
 
 ## 1. 状态流转
 
@@ -47,3 +58,4 @@
 - 人工验收：
 - 自动化验证：
 - 回归范围：
+- 仅有验收标准而无状态流时：删除 § 1，仅保留与项目实际能力对应的验收项。

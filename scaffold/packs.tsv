@@ -1,0 +1,23 @@
+pack	requires	description
+core		所有项目共享的最小入口、范围、功能模板、搭建指南与文档规范
+requirements	core	需求模块、用例与阶段 / 版本范围管理（MVP 可用）
+architecture	core	系统设计、架构边界、风险与 ADR/RFC 模板
+workflow	core	业务状态、生命周期流转与逐项验收标准
+tracking	core	BACKLOG 与 DevLog 轻量任务、问题和过程记录
+ai-planning	tracking	AI Agent 项目上下文与文件式 plan 生命周期
+team	tracking;security	平台无关的团队协作、分支、Review、责任边界与新人上手
+commercial	tracking	商业报价、客户确认、变更、交付验收与支持口径
+open-source	security	平台无关的公开贡献、安全上报、治理与社区支持入口
+release-support	core	版本记录、发布流程与支持范围
+security	core	项目内部安全与合规基线
+operations	release-support;tracking	部署、值班、故障排查与问题复盘
+api	architecture	API 契约、对外变更与接入模板
+data	architecture	数据库结构、关系与迁移规范
+frontend	architecture	UI、页面模块与组件 API 契约
+frontend-api-contract	frontend;api	前端行为与后端 API 契约对照
+access-control	security	角色、接口、数据与页面权限矩阵
+migration	architecture;release-support	版本迁移与技术迁移计划
+glossary	core	业务、技术、角色与废弃术语表
+tooling	core	编辑器配置、Markdown 配置以及本地占位符 / 链接检查脚本
+github	core	GitHub Pull Request、Issue Forms 与 CODEOWNERS 资产
+github-ci	github;tooling	GitHub Actions 文档门禁；链接立即检查，占位符在 strict-ci 标记后阻断
