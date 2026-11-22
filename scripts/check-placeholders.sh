@@ -26,6 +26,22 @@ TARGET_SEEN=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    -h|--help)
+      cat <<'EOF'
+用法：
+  bash scripts/check-placeholders.sh [--mode consumer|template] [TARGET]
+
+说明：
+  consumer (别名: Consumer)                 检查下游项目活动文档是否存在未替换占位符（默认）
+  template (别名: TemplateRepository)       检查模板仓库占位符语法是否合法
+
+退出码：
+  0  通过
+  1  发现占位符残留或非法语法
+  2  参数、状态文件或目标路径错误
+EOF
+      exit 0
+      ;;
     --mode)
       [ "$#" -ge 2 ] || { echo "ERROR --mode requires a value."; exit 2; }
       MODE="$2"
@@ -51,10 +67,14 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "$MODE" != "consumer" ] && [ "$MODE" != "template" ]; then
-  echo "ERROR unknown mode: ${MODE}. Use consumer or template."
-  exit 2
-fi
+case "$(printf '%s' "$MODE" | tr '[:upper:]' '[:lower:]')" in
+  consumer) MODE="consumer" ;;
+  template|templaterepository) MODE="template" ;;
+  *)
+    echo "ERROR unknown mode: ${MODE}. Use consumer (Consumer) or template (TemplateRepository)."
+    exit 2
+    ;;
+esac
 
 if [ ! -e "$TARGET" ]; then
   echo "ERROR target does not exist: ${TARGET}"
@@ -164,6 +184,7 @@ state_list_has() {
 }
 
 if [ "$MODE" = "consumer" ] && [ -e ".docs-template/state.tsv" ]; then
+  source "$REPO_ROOT/scripts/lib/template-hash.sh" || state_error "could not load the template hash helper."
   [ -f ".docs-template/state.tsv" ] || state_error "state.tsv is not a regular file."
   STATE_PRESENT=1
   expected_header=$'schema_version\ttemplate_version\tdestination\tsource\tpacks\tplaceholder_policy\tsha256'
@@ -216,8 +237,13 @@ if [ "$MODE" = "consumer" ] && [ -e ".docs-template/state.tsv" ]; then
       authorized_preserve_destination "$destination" || state_error "unauthorized preserve-template destination '$destination' at line $state_line_number."
       preserved_path="$REPO_ROOT/$destination"
       [ -f "$preserved_path" ] || state_error "preserve-template destination '$destination' does not exist as a file."
-      sha256_file "$preserved_path"
-      [ "$SHA256_RESULT" = "$sha256" ] || state_error "sha256 mismatch for preserve-template destination '$destination'."
+      canonical_hash="$(template_text_hash "$preserved_path")" || state_error "unable to hash '$destination'."
+      if [ "$canonical_hash" != "$sha256" ]; then
+        sha256_file "$preserved_path"
+        if [ "$SHA256_RESULT" != "$sha256" ] && [ "$(template_text_hash "$preserved_path" crlf)" != "$sha256" ]; then
+          state_error "sha256 mismatch for preserve-template destination '$destination'."
+        fi
+      fi
       if [ -n "$STATE_ALLOWLIST" ]; then
         STATE_ALLOWLIST="$STATE_ALLOWLIST"$'\n'"$destination"
       else
@@ -249,6 +275,23 @@ is_syntax_example() {
   [ "$rel" = "docs/style-guide.md" ] && [ "$token" = "xxx" ]
 }
 
+mask_workflow_expressions() {
+  # Preserve line numbers and allow braces inside Actions single-quoted strings.
+  LC_ALL=C awk '
+    { source = source $0 "\n" }
+    END {
+      while (match(source, /\$\{\{([^{}\047]|\047([^\047]|\047\047)*\047)+\}\}/)) {
+        printf "%s", substr(source, 1, RSTART-1)
+        expression = substr(source, RSTART, RLENGTH)
+        source = substr(source, RSTART+RLENGTH)
+        gsub(/[^\n]/, " ", expression)
+        printf "%s", expression
+      }
+      printf "%s", source
+    }
+  ' "$1"
+}
+
 echo "==> 扫描 ${TARGET} 中的模板占位符"
 if [ "$MODE" = "template" ]; then
   echo "    Mode: template，模板源允许合法 token，非模板内容不得残留。"
@@ -265,6 +308,12 @@ while IFS= read -r -d '' file; do
     token_allowed=true
   fi
 
+  if [[ "$rel" =~ ^\.github/workflows/[^/]+\.ya?ml$ ]] ||
+     { [ "$MODE" = "template" ] && [ "$rel" = "scaffold/templates/docs-checks.yml" ]; }; then
+    exec 3< <(mask_workflow_expressions "$file")
+  else
+    exec 3< "$file"
+  fi
   line_number=0
   while IFS= read -r line || [ -n "$line" ]; do
     line_number=$((line_number + 1))
@@ -302,7 +351,8 @@ while IFS= read -r -d '' file; do
         marker_remaining="${marker_remaining#*'@your-org/'}"
       done
     fi
-  done < "$file"
+  done <&3
+  exec 3<&-
 done < <(
   find "$SCAN_TARGET" -type f \
     ! -path '*/.git/*' \

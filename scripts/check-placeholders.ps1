@@ -1,4 +1,4 @@
-# check-placeholders.ps1
+﻿# check-placeholders.ps1
 #
 # 检查模板占位符：
 #   - Consumer：拒绝非模板文件中的任何 {{...}} 残留、残缺双花括号，
@@ -21,9 +21,28 @@ param(
 
     [string]$Mode = "Consumer",
 
+    [switch]$Help,
+
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$RemainingArguments = @()
 )
+
+if ($Help -or $Target -in @("-h", "--help")) {
+    Write-Host @"
+用法：
+  pwsh scripts/check-placeholders.ps1 [Target] [-Mode Consumer|TemplateRepository]
+
+说明：
+  Consumer (别名: consumer)                 检查下游项目活动文档是否存在未替换占位符（默认）
+  TemplateRepository (别名: template)       检查模板仓库占位符语法是否合法
+
+退出码：
+  0  通过
+  1  发现占位符残留或非法语法
+  2  参数、状态文件或目标路径错误
+"@
+    exit 0
+}
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
@@ -32,9 +51,14 @@ if ($RemainingArguments.Count -gt 0) {
     Write-Host "ERROR only one target may be provided."
     exit 2
 }
-if ($Mode -notin @("Consumer", "TemplateRepository")) {
-    Write-Host "ERROR unknown mode: $Mode. Use Consumer or TemplateRepository."
-    exit 2
+switch ($Mode.ToLowerInvariant()) {
+    "consumer" { $Mode = "Consumer" }
+    "template" { $Mode = "TemplateRepository" }
+    "templaterepository" { $Mode = "TemplateRepository" }
+    default {
+        Write-Host "ERROR unknown mode: $Mode. Use Consumer (consumer) or TemplateRepository (template)."
+        exit 2
+    }
 }
 
 $consumerTemplatePatterns = @(
@@ -144,6 +168,11 @@ function Test-IsAuthorizedPreserveDestination {
 function Get-ConsumerStateAllowlist {
     $statePath = Join-Path $repoRoot '.docs-template\state.tsv'
     if (-not (Test-Path -LiteralPath $statePath)) { return $null }
+    try {
+        . (Join-Path $PSScriptRoot "lib/template-hash.ps1")
+    } catch {
+        Stop-InvalidState "could not load the template hash helper: $($_.Exception.Message)"
+    }
 
     $stateItem = Get-Item -LiteralPath $statePath -Force
     if ($stateItem.PSIsContainer) { Stop-InvalidState 'state.tsv is not a regular file.' }
@@ -213,8 +242,10 @@ function Get-ConsumerStateAllowlist {
             if (-not (Test-Path -LiteralPath $preservedPath -PathType Leaf)) {
                 Stop-InvalidState "preserve-template destination '$destination' does not exist as a file."
             }
-            $actualHash = (Get-FileHash -LiteralPath $preservedPath -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actualHash -cne $sha256) {
+            # Schema 1 originally hashed the checkout bytes, including CRLF or mixed endings.
+            if ((Get-TemplateTextHash $preservedPath) -cne $sha256 -and
+                (Get-FileHash -LiteralPath $preservedPath -Algorithm SHA256).Hash -ine $sha256 -and
+                (Get-TemplateTextHash $preservedPath -LegacyCrlf) -cne $sha256) {
                 Stop-InvalidState "sha256 mismatch for preserve-template destination '$destination'."
             }
             [void]$allowlist.Add($destination)
@@ -284,8 +315,18 @@ foreach ($file in $files) {
             (Test-MatchesAnyPattern $relForward $templateRepositoryPatterns)
     }
 
+    $isWorkflow = $relForward -cmatch '^\.github/workflows/[^/]+\.ya?ml$' -or
+        ($Mode -eq 'TemplateRepository' -and $relForward -ceq 'scaffold/templates/docs-checks.yml')
+    if ($isWorkflow) {
+        # Expressions can span YAML lines and contain braces in single-quoted strings.
+        $content = [System.IO.File]::ReadAllText($file.FullName)
+        $expression = '\$\{\{(?:[^{}'']|''(?:[^'']|'''')*'')+\}\}'
+        $lines = ([regex]::Replace($content, $expression, { param($m) $m.Value -replace '[^\n]', ' ' })) -split "`n"
+    } else {
+        $lines = [System.IO.File]::ReadLines($file.FullName)
+    }
     $lineNumber = 0
-    foreach ($line in (Get-Content -LiteralPath $file.FullName -Encoding UTF8)) {
+    foreach ($line in $lines) {
         $lineNumber++
 
         if ($line -match '\{\{\{|\}\}\}') {

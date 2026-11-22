@@ -67,7 +67,7 @@ chore/<description>      维护与配置
 ### 提交信息格式
 
 ```text
-<type>: <简要描述>
+<type>(<scope>): <subject>
 
 {{OPTIONAL_BODY_EXPLAIN_WHY}}
 
@@ -327,7 +327,7 @@ Review 结论分为：
 ## 自查清单
 - [ ] 文档已同步更新（对照 `CONTRIBUTING.md § 6`）
 - [ ] `CHANGELOG.md` 已更新到 `Unreleased`，或已说明不产生发布影响
-- [ ] 若触发 `docs/README.md § 4` 的强制条件，已提交 ADR
+- [ ] 若触发 [ADR 新建条件](docs/adr/README.md#1-何时需要新增-adr)，已提交 ADR
 - [ ] 若涉及对外 API 破坏性变更，已更新 `docs/design/api-changes.md`
 - [ ] 未绕过模块边界、层边界或既有端口 / 适配器边界
 - [ ] 阻塞 Review 评论已处理，非阻塞建议已有结论
@@ -339,9 +339,9 @@ Review 结论分为：
 
 重大架构决策必须记录在 `docs/adr/` 目录。
 
-**完整的强制 / 非强制触发条件**以 `docs/README.md § 4 何时应新建 ADR` 为权威源，本节不再复述。
+完整触发条件见 [ADR 索引](docs/adr/README.md#1-何时需要新增-adr)。
 
 提交代码时只需自检：
 
-- 本次改动是否触发了 `docs/README.md § 4` 中的强制条件？若是，同步提交 ADR。
+- 本次改动是否触发了上述新建条件？若是，同步提交 ADR。
 - 若触发了 ADR，对应 `docs/features/*.md` 头部 `Related ADR` 字段**必须**填入 ADR 编号。

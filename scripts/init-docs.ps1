@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$Target,
     [string]$ProjectName,
@@ -12,11 +12,14 @@ param(
     [switch]$RequireComplete,
     [switch]$ListProfiles,
     [switch]$ListPacks,
+    [switch]$ListPlaceholders,
+    [switch]$Tsv,
     [switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "lib/template-hash.ps1")
 
 function Stop-InitDocs {
     param(
@@ -35,19 +38,39 @@ function Stop-InitDocs {
 
 function Show-Usage {
     @"
-Usage:
+项目文档脚手架初始化器（PowerShell）
+
+核心概念：
+  Profile   常见项目起点（personal / commercial / open-source）
+  Pack      按需叠加的文档能力包（如 architecture / api / data / frontend / team / github）
+  Preserve  目标目录已有 README/配置等文件时自动保留，不覆盖
+
+常用命令：
+  # 1. 查看可用起点、能力包和可填字段
+  pwsh -NoProfile -File scripts/init-docs.ps1 -ListProfiles
+  pwsh -NoProfile -File scripts/init-docs.ps1 -ListPacks
+  pwsh -NoProfile -File scripts/init-docs.ps1 -ListPlaceholders [-Profile personal] [-IncludePack github]
+
+  # 2. 先预览（不写入任何文件），确认后再去掉 -DryRun 正式生成
   pwsh -NoProfile -File scripts/init-docs.ps1 \
     -Target <directory> -ProjectName <name> -Owner <owner> \
     -Profile <personal|commercial|open-source>[,<profile>...] \
     [-IncludePack <pack>[,<pack>...]] [-ExcludePack <pack>[,<pack>...]] \
     [-Date YYYY-MM-DD] [-SetValue KEY=VALUE] [-DryRun] [-RequireComplete]
 
-Discovery:
-  pwsh -NoProfile -File scripts/init-docs.ps1 -ListProfiles
-  pwsh -NoProfile -File scripts/init-docs.ps1 -ListPacks
+说明：
+  -SetValue         传入项目元数据或所选活动文档中的正文字段；需传多项时可直接在 PowerShell 中运行
+                    ./scripts/init-docs.ps1 -SetValue @('K1=V1','K2=V2')
+  -RequireComplete  活动文档仍有未填占位符时返回退出码 6 且不写入任何文件
+  -Tsv              配合 -List* 使用时输出原始 Tab 分隔文本，便于脚本解析
 
-Safety:
-  The initializer never overwrites a different existing file and has no force mode.
+安全边界：
+  初始化器绝不静默覆盖已有不同文件，也不提供 force 或原地升级模式。
+  后续需追加 pack 时，请生成到新的临时目录再通过 Git diff 人工合并。
+
+退出码：
+  0  成功 / 预览通过          2  参数或路径安全错误      3  存在文件冲突（零写入）
+  4  脚手架清单损坏           5  文件系统读写错误        6  -RequireComplete 检测到未填占位符
 "@ | Write-Host
 }
 
@@ -323,16 +346,84 @@ try {
         exit 0
     }
     if ($ListProfiles) {
-        foreach ($name in @($profilesByName.Keys | Sort-Object)) {
-            $row = $profilesByName[$name]
-            Write-Host "$name`t$($row.packs)`t$($row.description)"
+        if ($Tsv) {
+            foreach ($name in @($profilesByName.Keys | Sort-Object)) {
+                $row = $profilesByName[$name]
+                Write-Host "$name`t$($row.packs)`t$($row.description)"
+            }
+        } else {
+            Write-Host ("{0,-14} {1,-58} {2}" -f "PROFILE", "DEFAULT PACKS", "DESCRIPTION")
+            Write-Host ("{0,-14} {1,-58} {2}" -f ("-" * 14), ("-" * 58), ("-" * 20))
+            foreach ($name in @($profilesByName.Keys | Sort-Object)) {
+                $row = $profilesByName[$name]
+                Write-Host ("{0,-14} {1,-58} {2}" -f $name, $row.packs, $row.description)
+            }
         }
         exit 0
     }
     if ($ListPacks) {
-        foreach ($name in @($packsByName.Keys | Sort-Object)) {
-            $row = $packsByName[$name]
-            Write-Host "$name`t$($row.requires)`t$($row.description)"
+        if ($Tsv) {
+            foreach ($name in @($packsByName.Keys | Sort-Object)) {
+                $row = $packsByName[$name]
+                Write-Host "$name`t$($row.requires)`t$($row.description)"
+            }
+        } else {
+            Write-Host ("{0,-24} {1,-26} {2}" -f "PACK", "REQUIRES", "DESCRIPTION")
+            Write-Host ("{0,-24} {1,-26} {2}" -f ("-" * 24), ("-" * 26), ("-" * 20))
+            foreach ($name in @($packsByName.Keys | Sort-Object)) {
+                $row = $packsByName[$name]
+                $req = if ([string]::IsNullOrWhiteSpace($row.requires)) { "-" } else { $row.requires }
+                Write-Host ("{0,-24} {1,-26} {2}" -f $name, $req, $row.description)
+            }
+        }
+        exit 0
+    }
+    if ($ListPlaceholders) {
+        $filterPacks = $null
+        $requestedProfiles = @(Expand-ArgumentValues $Profile)
+        $requestedIncludes = @(Expand-ArgumentValues $IncludePack)
+        $requestedExcludes = @(Expand-ArgumentValues $ExcludePack)
+        if ($requestedProfiles.Count -gt 0 -or $requestedIncludes.Count -gt 0) {
+            $filterPacks = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            [void]$filterPacks.Add("core")
+            foreach ($profileName in $requestedProfiles) {
+                $key = $profileName.ToLowerInvariant()
+                if (-not $profilesByName.ContainsKey($key)) { Stop-InitDocs 2 "Unknown profile: $profileName" }
+                foreach ($packName in @(Split-ManifestList $profilesByName[$key].packs)) { [void]$filterPacks.Add($packName) }
+            }
+            foreach ($packName in $requestedIncludes) {
+                $key = $packName.ToLowerInvariant()
+                if (-not $packsByName.ContainsKey($key)) { Stop-InitDocs 2 "Unknown pack in -IncludePack: $packName" }
+                [void]$filterPacks.Add($key)
+            }
+            $expanded = $true
+            while ($expanded) {
+                $expanded = $false
+                foreach ($packName in @($filterPacks)) {
+                    foreach ($requiredPack in @(Split-ManifestList $packsByName[$packName].requires)) {
+                        if ($filterPacks.Add($requiredPack)) { $expanded = $true }
+                    }
+                }
+            }
+            foreach ($packName in $requestedExcludes) { [void]$filterPacks.Remove($packName.ToLowerInvariant()) }
+        }
+        $rowsToShow = @($placeholderRows | Where-Object {
+            if ($null -eq $filterPacks) { return $true }
+            $rowPacks = @(Split-ManifestList $_.packs)
+            foreach ($p in $rowPacks) { if ($filterPacks.Contains($p)) { return $true } }
+            return $false
+        } | Sort-Object token)
+        if ($Tsv) {
+            foreach ($row in $rowsToShow) {
+                Write-Host "$($row.token)`t$($row.required)`t$($row.packs)`t$($row.default)`t$($row.tbd)`t$($row.description)"
+            }
+        } else {
+            Write-Host ("{0,-30} {1,-8} {2,-26} {3,-12} {4}" -f "TOKEN", "REQUIRED", "PACKS", "FALLBACK", "DESCRIPTION")
+            Write-Host ("{0,-30} {1,-8} {2,-26} {3,-12} {4}" -f ("-" * 30), ("-" * 8), ("-" * 26), ("-" * 12), ("-" * 20))
+            foreach ($row in $rowsToShow) {
+                $fallback = if (-not [string]::IsNullOrWhiteSpace($row.default)) { $row.default } elseif (-not [string]::IsNullOrWhiteSpace($row.tbd)) { $row.tbd } else { "-" }
+                Write-Host ("{0,-30} {1,-8} {2,-26} {3,-12} {4}" -f $row.token, $row.required, $row.packs, $fallback, $row.description)
+            }
         }
         exit 0
     }
@@ -467,10 +558,6 @@ try {
             $replacements.Add($token, $value)
         }
     }
-    foreach ($key in $customValues.Keys) {
-        if (-not $applicableKeys.Contains($key)) { Stop-InitDocs 2 "Unknown or inactive -SetValue key for the selected profiles and packs: $key" }
-    }
-
     $targetFull = Get-ComparablePath $Target
     $targetRoot = [System.IO.Path]::GetPathRoot($targetFull)
     $targetComparable = $targetFull.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
@@ -513,6 +600,25 @@ try {
     }
     if ($selectedRowsByDestination.Count -eq 0) { Stop-InitDocs 4 "The selected profiles and packs produced no files." }
 
+    $bodyKeys = @($customValues.Keys | Where-Object { -not $applicableKeys.Contains($_) })
+    if ($bodyKeys.Count -gt 0) {
+        $bodyTokens = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+        foreach ($selected in $selectedRowsByDestination.Values) {
+            if ($selected.Manifest.mode -ne "render" -or $selected.Manifest.placeholder_policy -ne "replace") { continue }
+            $sourceText = [System.IO.File]::ReadAllText($selected.SourceFull)
+            foreach ($match in [regex]::Matches($sourceText, '\{\{[A-Z][A-Z0-9_]*\}\}')) {
+                [void]$bodyTokens.Add($match.Value)
+            }
+        }
+        foreach ($key in $bodyKeys) {
+            $token = "{{$key}}"
+            if ($placeholderRows.token -ccontains $token -or -not $bodyTokens.Contains($token)) {
+                Stop-InitDocs 2 "Unknown or inactive -SetValue key for the selected profiles and packs: $key"
+            }
+            $replacements.Add($token, $customValues[$key])
+        }
+    }
+
     $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("docs-template-init-" + [guid]::NewGuid().ToString("N"))
     [System.IO.Directory]::CreateDirectory($temporaryRoot) | Out-Null
     $stagingRoot = Join-Path $temporaryRoot "stage"
@@ -542,7 +648,7 @@ try {
         $catalogType = switch ($catalogRow.placeholder_policy) {
             "preserve-template" { "可复用模板" }
             "none" { "工具或配置" }
-            default { "活跃文档" }
+            default { "活动文档" }
         }
         [void]$catalogBuilder.AppendLine("| ``$catalogGroup`` | ``$catalogPath`` | $catalogType | $catalogDescription |")
     }
@@ -567,7 +673,7 @@ try {
         $catalogType = switch ($catalogRow.placeholder_policy) {
             "preserve-template" { "可复用模板" }
             "none" { "工具或配置" }
-            default { "活跃文档" }
+            default { "活动文档" }
         }
         [void]$rootCatalogBuilder.AppendLine("| [$catalogDestination]($catalogDestination) | $catalogType | $catalogDescription |")
         $rootCatalogRows++
@@ -617,6 +723,9 @@ try {
         $prospectiveTarget = Join-Path $targetFull ($destination -replace '/', [System.IO.Path]::DirectorySeparatorChar)
         $isPreserved = $row.conflict -eq "preserve" -and [System.IO.File]::Exists($prospectiveTarget) -and (Get-Sha256 $prospectiveTarget) -ne $stagedHash
         if (-not $isPreserved) {
+            if ($row.placeholder_policy -eq "preserve-template") {
+                $stagedHash = Get-TemplateTextHash $stagedPath
+            }
             $stateEntries.Add("1`t$templateVersion`t$destination`t$($row.source)`t$($row.packs)`t$($row.placeholder_policy)`t$stagedHash")
         }
     }
@@ -633,8 +742,7 @@ try {
         foreach ($item in $unresolved | Sort-Object Path) {
             $tokens = [string[]]@($item.Counts.Keys)
             [System.Array]::Sort($tokens, [System.StringComparer]::Ordinal)
-            $preview = ($tokens | Select-Object -First 12) -join ", "
-            if ($tokens.Count -gt 12) { $preview += ", ..." }
+            $preview = $tokens -join ", "
             Write-Host "  $($item.Path): $($item.Total) ($preview)"
         }
         if ($RequireComplete) { Stop-InitDocs 6 "RequireComplete rejected unresolved placeholders." }
@@ -687,7 +795,7 @@ try {
         Write-Host ("[{0}] {1}" -f $actions[$relativePath].PadRight(9), $relativePath)
     }
     if ($conflicts.Count -gt 0) {
-        Stop-InitDocs 3 "Different existing files or path collisions were found. No target files were written."
+        Stop-InitDocs 3 "Different existing files or path collisions were found. No target files were written. Note: init-docs does not overwrite or upgrade in place; to add packs or update templates, generate into a new temporary directory and merge via git diff."
     }
     if ($DryRun) {
         Write-Host "DRY-RUN OK: no target files were written."
@@ -706,7 +814,8 @@ try {
         $createdTarget = $true
         Assert-SafeTargetDestination $targetFull $stateRelative
     }
-    foreach ($relativePath in $outputPaths) {
+    $applyOrder = @($outputPaths | Where-Object { $_ -ne $stateRelative }) + @($stateRelative)
+    foreach ($relativePath in $applyOrder) {
         if ($actions[$relativePath] -ne "CREATE") { continue }
         $targetPath = Join-Path $targetFull ($relativePath -replace '/', [System.IO.Path]::DirectorySeparatorChar)
         Assert-SafeTargetDestination $targetFull $relativePath
@@ -724,6 +833,22 @@ try {
     }
 
     Write-Host "OK: initialized $($destinations.Count) scaffold file(s) plus state metadata."
+    $preservedFiles = @($outputPaths | Where-Object { $actions[$_] -eq "PRESERVE" })
+    if ($preservedFiles.Count -gt 0 -or $unresolved.Count -gt 0 -or $selectedPacks.Contains("tooling") -or $selectedPacks.Contains("github-ci")) {
+        Write-Host "Next steps:"
+        if ($preservedFiles.Count -gt 0) {
+            Write-Host "  - Manually merge preserved file(s): $($preservedFiles -join ', ')"
+        }
+        if ($unresolved.Count -gt 0) {
+            Write-Host "  - Fill remaining placeholders in active documents (use TBD for unknown facts, N/A for inapplicable items)."
+        }
+        if ($selectedPacks.Contains("tooling")) {
+            Write-Host "  - Run local checks in target repo: pwsh scripts/check-placeholders.ps1 && pwsh scripts/check-doc-links.ps1"
+        }
+        if ($selectedPacks.Contains("github-ci")) {
+            Write-Host "  - After check-placeholders passes (exit 0), create .docs-template/strict-ci to enable strict CI blocking."
+        }
+    }
     exit 0
 }
 catch {

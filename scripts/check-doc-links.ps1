@@ -1,4 +1,4 @@
-# check-doc-links.ps1
+﻿# check-doc-links.ps1
 #
 # Validate local links in downstream project Markdown documents.
 #
@@ -14,10 +14,30 @@
 
 param(
     [Parameter(Position = 0)]
-    [string]$Target = "."
+    [string]$Target = ".",
+
+    [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Help -or $Target -in @("-h", "--help")) {
+    Write-Host @"
+用法：
+  pwsh scripts/check-doc-links.ps1 [Target]
+  pwsh scripts/check-doc-links.ps1 -Target docs
+
+说明：
+  检查下游项目 Markdown 文档中的本地文件、图片、标题锚点与路径大小写是否有效。
+  在 Git 仓库中扫描已跟踪及未忽略的 Markdown；普通目录中递归扫描并跳过常见构建/依赖目录。
+
+退出码：
+  0  所有本地链接有效
+  1  发现无效链接
+  2  目标路径无效或无法扫描
+"@
+    exit 0
+}
 
 $linkPattern = [regex]::new('(?<image>!)?\[[^\]\r\n]*\]\(\s*(?<destination><[^>\r\n]+>|[^)\s\r\n]+)')
 $referencePattern = [regex]::new('^\s*\[[^\]\r\n]+\]:\s*(?<destination><[^>\r\n]+>|\S+)')
@@ -176,6 +196,46 @@ function Get-DisplayPath {
     return [System.IO.Path]::GetRelativePath($ScanRoot, $FilePath).Replace('\', '/')
 }
 
+function Get-MarkdownSourceFiles {
+    param([string]$Directory)
+
+    $git = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $git -or (& $git.Source -C $Directory rev-parse --is-inside-work-tree 2>$null) -ne 'true') {
+        $ignoredDirs = @('.git', 'node_modules', 'dist', 'build', '.next', '.venv', 'vendor')
+        Get-ChildItem -LiteralPath $Directory -Recurse -File -Filter '*.md' -Force | Where-Object {
+            $rel = [System.IO.Path]::GetRelativePath($Directory, $_.FullName).Replace('\', '/')
+            $segments = $rel.Split('/')
+            $skip = $false
+            for ($i = 0; $i -lt ($segments.Length - 1); $i++) {
+                if ($ignoredDirs -contains $segments[$i]) { $skip = $true; break }
+            }
+            -not $skip
+        }
+        return
+    }
+
+    # Read NUL-delimited UTF-8 paths without PowerShell splitting filenames at newlines.
+    $start = [System.Diagnostics.ProcessStartInfo]::new($git.Source)
+    $start.UseShellExecute = $false
+    $start.RedirectStandardOutput = $true
+    $start.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    foreach ($argument in @('-C', $Directory, 'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ':(icase,glob)**/*.md')) {
+        $start.ArgumentList.Add($argument)
+    }
+    $process = [System.Diagnostics.Process]::Start($start)
+    try {
+        $paths = $process.StandardOutput.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) { throw "git ls-files failed under $Directory" }
+    } finally {
+        $process.Dispose()
+    }
+    foreach ($relative in $paths.Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries)) {
+        $file = [System.IO.FileInfo]::new((Join-Path $Directory $relative))
+        if ($file.Exists) { $file }
+    }
+}
+
 function Test-LinkDestination {
     param(
         [string]$RawDestination,
@@ -290,7 +350,7 @@ try {
     }
     else {
         $scanRoot = $targetItem.FullName
-        $files = @(Get-ChildItem -LiteralPath $scanRoot -Recurse -File -Filter '*.md' -Force)
+        $files = @(Get-MarkdownSourceFiles $scanRoot)
     }
 
     Write-Host "==> checking local Markdown links under $($targetItem.FullName)"

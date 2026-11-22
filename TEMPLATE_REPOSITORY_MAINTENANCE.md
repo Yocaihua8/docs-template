@@ -16,6 +16,7 @@
 - `CHANGELOG.md`：只保留变更记录模板，不写本仓库真实变更日志。
 - `docs/plans/plan-template.md`：只保留 plan 格式模板，不写本仓库真实 plan。
 - `AGENTS.md`：保留下游项目可复用的完整参考模板，不写“当前仓库是模板仓库”这类维护者专用规则；初始化器实际分发 `scaffold/templates/consumer-AGENTS.md` 的轻量基线。
+- `CONTRIBUTING.md`、`.github/CODEOWNERS`、`.github/pull_request_template.md`：在仓库根目录保留作为完整参考模板与仓库自身维护校验对象；初始化器实际向消费项目分发的是 `scaffold/templates/` 下对应的轻量专用版本（`CONTRIBUTING.md`、`CODEOWNERS`、`pull_request_template.md`）。
 
 下游专用、不能与仓库维护版本共用的入口放在 `scaffold/templates/`，包括轻量 AGENTS、项目 README、Consumer 文档索引、Consumer CI、CODEOWNERS、行为准则、贡献指南和 PR 模板。Consumer CI 属于显式 `github-ci` pack；默认 profile 只分发本地检查脚本，避免非 GitHub 项目收到 `.github/workflows/`。`github-ci` 的链接门禁立即生效，占位符门禁只有在使用方完成本地检查并创建 `.docs-template/strict-ci` 后才阻断。
 
@@ -40,7 +41,7 @@ pwsh -NoProfile -File scripts\check-docs-consistency.ps1
 pwsh -NoProfile -File scripts\check-placeholders.ps1 -Mode TemplateRepository
 ```
 
-生成到具体项目后，使用 Consumer 模式检查活动文档中的占位符；`.docs-template/state.tsv` 只允许精确豁免 manifest 标记为 `preserve-template` 的可复用模板。检查器会严格验证七列表头、路径、pack、policy 与 SHA-256；`preserve-template` 还必须属于窄模板目标且当前文件 hash 与 state 一致，不能通过手改 policy 把活动文档提权为模板：
+生成到具体项目后，使用 Consumer 模式检查活动文档。`.docs-template/state.tsv` 记录七列数据，检查器验证表头、路径、pack、policy 与 SHA-256。仅为清单允许的 `preserve-template` 路径豁免占位符。初始化器和检查器对这类 Markdown 的摘要统一按 LF 计算，保留 BOM、末行换行和其他字节差异。检查器也接受旧版记录的原始摘要或 CRLF 摘要。
 
 ```powershell
 pwsh -NoProfile -File scripts\check-placeholders.ps1
@@ -48,3 +49,5 @@ pwsh -NoProfile -File scripts\check-doc-links.ps1
 ```
 
 不要直接对模板仓库根目录运行 Consumer 链接门禁：`scaffold/templates/` 内的相对链接以生成后的 destination 为基准，在源目录中预期无法解析。`test-init-docs.ps1` 会分别生成 personal、commercial、open-source 到系统临时目录，再用 PowerShell / Bash 门禁检查真实 Consumer 布局。
+
+链接门禁在 Git 工作区通过 `git ls-files` 选取已跟踪和未忽略的新文档。`scripts/.gitattributes` 固定 Bash 脚本的 LF 换行，便于在启用了自动换行转换的检出中直接运行回归。

@@ -1,15 +1,6 @@
 # 原始文档到模板结构的归类说明
 
-这份说明用于帮助你把旧项目文档迁移到统一模板中。
-
-> **维护同步要求**
-> 本文件的目录清单必须与以下两处保持一致，任何一处变更需同步另外两处：
->
-> - `README.md` § 推荐目录
-> - `docs/README.md` § 2. 目录说明
-> - `template-mapping.md`（本文件）各"归入位置"清单
->
-> 建议作为 PR 检查项，或通过脚本比对目录树与以上三处的文件清单。
+这份说明用于帮助你把旧项目文档迁移到统一模板中。本仓库自身的三索引同步维护规范见 `TEMPLATE_REPOSITORY_MAINTENANCE.md`。
 
 ## 1. 工程协作类
 
@@ -19,13 +10,14 @@
 - 原有分支/测试/协作相关说明
 
 ### 归入位置
-- `AGENTS.md`（AI 编码助手操作上下文；下游文件由 `scaffold/templates/consumer-AGENTS.md` 生成，仓库根 `AGENTS.md` 保留为完整参考模板，不再由初始化器直接分发）
+- `AGENTS.md`（AI 编码助手操作上下文）
 - `CONTRIBUTING.md`
 - `CHANGELOG.md`
 - `.github/pull_request_template.md`
 - `.github/ISSUE_TEMPLATE/`
 - `.github/CODEOWNERS`
-- `.github/workflows/docs-template-checks.yml`
+- `.github/workflows/docs-checks.yml`（下游项目文档检查工作流）
+- `scripts/lib/template-hash.ps1`、`scripts/lib/template-hash.sh` 与 `scripts/.gitattributes`（本地模板摘要与 Bash 检出规则）
 - `docs/style-guide.md`（写作规范 / 占位符约定）
 - `docs/features/README.md`（功能文档目录索引）
 - `docs/adr/README.md`（ADR 目录索引）
@@ -132,6 +124,7 @@
 ### 来源
 - 开发日志 / 日报 / 周报
 - 问题复盘 / 事故复盘 / 复杂排障总结
+- 跨事件重复出现的失误模式、证据误用或交付反模式
 - 调试过程笔记
 - 临时决策记录（未达到 ADR 等级）
 - 迭代进展记录
@@ -142,6 +135,7 @@
 - `docs/devlog/YYYY/MM/YYYY-Www.md`（周报，按记录创建日期所属月份归档）
 - 首次编写建议复制 `docs/devlog/devlog-template.md`
 - 问题复盘建议复制 `docs/devlog/postmortem-template.md`，实际文件放入 `docs/devlog/YYYY/MM/`
+- 通用失误模式与预防门禁归入 `docs/guides/project-failure-patterns-and-prevention.md`
 - `docs/plans/{{B_ID}}-{{SLUG}}.md`（AI 任务计划，与 BACKLOG 条目对应）
 - 首次编写建议复制 `docs/plans/plan-template.md`
 
@@ -150,6 +144,7 @@
 - 跨迭代的待办须从 devlog / plan 提升到 `docs/BACKLOG.md`
 - devlog 仅保留过程记录，不承担定稿职责
 - postmortem 用于沉淀一次问题的根因、失败方案、最终方案和防复发动作；行动项必须回流到 BACKLOG / ADR / 正式文档
+- 通用失误指南只保留跨事件仍成立的模式、控制和证据边界，不复制项目专属结论或数值
 - plan 文件在任务完成、回流清单全部勾选后删除
 
 ## 8. 商务 / 报价 / 工期 / 成本预估类
@@ -197,6 +192,7 @@
 | 故障排查、常见错误、升级路径 | `docs/guides/troubleshooting.md` | 需要沉淀现象、可能原因、检查命令、解决步骤和收集信息清单 |
 | 支持渠道、响应级别、不支持事项、维护版本 | `docs/guides/support-policy.md` | 需要定义支持范围、安全问题入口、升级路径和维护版本 |
 | 事故复盘、问题复盘、复杂排障总结 | `docs/devlog/postmortem-template.md` | 需要沉淀时间线、失败方案、最终方案、根因和防复发动作 |
+| 跨事件重复失误、证据误用、迁移或交付反模式 | `docs/guides/project-failure-patterns-and-prevention.md` | 需要形成可跨项目复用的预防门禁和验证边界 |
 | 商业报价、工期预估、成本拆分、付款节点 | `docs/business/quotation-estimate.md` | 商业化项目需要对外报价或承诺交付周期 |
 | 客户范围、依赖、待决策项和确认记录 | `docs/business/customer-confirmation.md` | 商业项目启动前后需要固定双方已确认事实 |
 | 交付物、验收证据、遗留项、环境与资产交接 | `docs/business/delivery-acceptance.md` | 商业项目进入交付、验收或质保交接阶段 |

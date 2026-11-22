@@ -1,4 +1,4 @@
-# test-docs-template-checks.ps1
+﻿# test-docs-template-checks.ps1
 #
 # Lightweight regression checks for this template repository's maintenance scripts
 # and lifecycle documentation.
@@ -140,6 +140,10 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $placeholderTempRoot "scripts") -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts\check-placeholders.ps1") -Destination (Join-Path $placeholderTempRoot "scripts\check-placeholders.ps1")
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts\check-placeholders.sh") -Destination (Join-Path $placeholderTempRoot "scripts\check-placeholders.sh")
+    New-Item -ItemType Directory -Path (Join-Path $placeholderTempRoot "scripts/lib") | Out-Null
+    foreach ($helper in @("template-hash.ps1", "template-hash.sh")) {
+        Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/$helper") -Destination (Join-Path $placeholderTempRoot "scripts/lib/$helper")
+    }
 
     New-Item -ItemType Directory -Path (Join-Path $placeholderTempRoot "cases\clean\docs") -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $placeholderTempRoot "cases\clean\docs\project.md") -Encoding UTF8 -Value "# Filled project"
@@ -167,6 +171,31 @@ Close marker: BROKEN}}
 
     $cleanPair = Invoke-PlaceholderPair -RepositoryRoot $placeholderTempRoot -Target "cases/clean"
     Assert-PlaceholderPairExitCode $cleanPair 0 "Filled consumer docs and authorized template files should pass."
+
+    Write-Host "==> workflow expressions and project placeholders can share the same YAML"
+    $workflowDir = New-Item -ItemType Directory -Path (Join-Path $placeholderTempRoot ".github/workflows") -Force
+    $workflowPath = Join-Path $workflowDir.FullName "build.yml"
+    $workflowText = @'
+name: '${{ github.ref }} ${{ matrix.os }}'
+run-name: >-
+  ${{ format('{0}',
+  github.ref) }}
+'@
+    [IO.File]::WriteAllText($workflowPath, $workflowText)
+    foreach ($mode in @("Consumer", "TemplateRepository")) {
+        $pair = Invoke-PlaceholderPair -RepositoryRoot $placeholderTempRoot -Target ".github/workflows/build.yml" -Mode $mode
+        Assert-PlaceholderPairExitCode $pair 0 "Valid Actions expressions should pass in $mode."
+    }
+    [IO.File]::AppendAllText($workflowPath, "`n" + 'value: ${{ github.ref }} {{OWNER}}' + "`n" + 'other: ${{ github.ref')
+    $pair = Invoke-PlaceholderPair -RepositoryRoot $placeholderTempRoot -Target ".github/workflows/build.yml"
+    Assert-PlaceholderPairExitCode $pair 1 "Workflow placeholders and unclosed expressions should fail."
+    foreach ($result in @($pair.PowerShell, $pair.Bash)) {
+        Assert-True ($result.Output -match 'build\.yml:5: unresolved placeholder \{\{OWNER\}\}') $result.Output
+        Assert-True ($result.Output -match 'build\.yml:6: incomplete double-brace marker') $result.Output
+    }
+    $ordinaryYaml = Join-Path $placeholderTempRoot "cases/unresolved/values.yaml"
+    [IO.File]::WriteAllText($ordinaryYaml, 'value: ${{ github.ref }}')
+    Assert-PlaceholderPairExitCode (Invoke-PlaceholderPair $placeholderTempRoot "cases/unresolved/values.yaml") 1 "Expressions outside workflow files still require review."
 
     $unresolvedPair = Invoke-PlaceholderPair -RepositoryRoot $placeholderTempRoot -Target "cases/unresolved"
     Assert-PlaceholderPairExitCode $unresolvedPair 1 "Consumer mode should reject every balanced and incomplete placeholder marker."
@@ -244,6 +273,20 @@ Incomplete token: {{BROKEN
 
     $statePositivePair = Invoke-PlaceholderPair -RepositoryRoot $placeholderTempRoot -Target "cases/state-positive"
     Assert-PlaceholderPairExitCode $statePositivePair 0 "Consumer mode should allow the exact preserve-template destination from state.tsv."
+
+    $preservedFixture = Join-Path $placeholderTempRoot "cases/state-positive/docs/feature-template.md"
+    $originalBytes = [IO.File]::ReadAllBytes($preservedFixture)
+    $originalState = Join-Path $placeholderTempRoot ".docs-template/state.tsv"
+    $crlfText = "# {{PROJECT_NAME}}`r`n正文"
+    [IO.File]::WriteAllText($preservedFixture, $crlfText)
+    $legacyHash = (Get-FileHash -LiteralPath $preservedFixture -Algorithm SHA256).Hash.ToLowerInvariant()
+    [IO.File]::WriteAllText($originalState, $validState.Replace($stateHash, $legacyHash) + "`n")
+    [IO.File]::WriteAllText($preservedFixture, $crlfText.Replace("`r`n", "`n"))
+    Assert-PlaceholderPairExitCode (Invoke-PlaceholderPair $placeholderTempRoot "cases/state-positive") 0 "Legacy CRLF state must accept an LF checkout, including a missing final newline."
+    [IO.File]::AppendAllText($preservedFixture, "`n")
+    Assert-PlaceholderPairExitCode (Invoke-PlaceholderPair $placeholderTempRoot "cases/state-positive") 2 "Adding a final newline still changes the signed template."
+    [IO.File]::WriteAllBytes($preservedFixture, $originalBytes)
+    [IO.File]::WriteAllText($originalState, $validState + "`n")
 
     $stateReplacePair = Invoke-PlaceholderPair -RepositoryRoot $placeholderTempRoot -Target "cases/state-replace"
     Assert-PlaceholderPairExitCode $stateReplacePair 1 "A replace destination must not be exempt even when its filename matches the legacy allowlist."
@@ -598,7 +641,19 @@ $practiceTemplates = @(
     },
     @{
         Path = "docs\devlog\postmortem-template.md"
-        Terms = @("背景", "时间线", "失败方案", "最终方案", "根因", "防复发", "BACKLOG", "ADR")
+        Terms = @(
+            "背景", "问题性质", "时间线", "失败方案", "最终方案", "根因",
+            "证据与结论边界", "防复发", "BACKLOG", "ADR", "通用规则"
+        )
+    },
+    @{
+        Path = "docs\guides\project-failure-patterns-and-prevention.md"
+        Terms = @(
+            "先判断是不是", "通用防错闭环", "业务基线", "目标态", "迁移路线", "mock",
+            "生产就绪", "并发", "第三方资源", "混合工作区", "执行授权", "失败关闭",
+            "个人或开源项目", "归属清晰、可独立拆分", "对正确失败关闭", "对外部阻塞",
+            '启用 `architecture` pack 时', '启用 `migration` pack 时', '启用 `tooling` pack 时'
+        )
     }
 )
 
@@ -615,7 +670,8 @@ $practiceTemplateRefs = @(
     "docs/guides/integration-guide-template.md",
     "docs/design/frontend-backend-contract-check.md",
     "docs/guides/technical-migration-plan.md",
-    "docs/devlog/postmortem-template.md"
+    "docs/devlog/postmortem-template.md",
+    "docs/guides/project-failure-patterns-and-prevention.md"
 )
 
 foreach ($content in @($rootReadme, $templateMapping)) {
@@ -642,7 +698,10 @@ foreach ($term in @("integration-guide-template.md", "契约权威源", "面向�
     Assert-True ($apiSpec -match [regex]::Escape($term)) "api-spec.md should explain integration guide boundary term: $term."
 }
 
-foreach ($term in @("postmortem-template.md", "问题复盘", "普通 devlog")) {
+foreach ($term in @(
+    "postmortem-template.md", "问题复盘", "普通 devlog",
+    "project-failure-patterns-and-prevention.md", "跨事件", "已确认失误", "operations"
+)) {
     Assert-True ($devlogReadme -match [regex]::Escape($term)) "docs/devlog/README.md should explain postmortem boundary term: $term."
 }
 
@@ -916,6 +975,29 @@ foreach ($content in @($rootReadme, $templateMapping)) {
     foreach ($ref in $profileSpecificRefs) {
         Assert-True ($content -match [regex]::Escape($ref)) "README and template-mapping should reference $ref."
     }
+}
+
+Write-Host "==> declared scaffold placeholders are actually referenced by distributed render+replace sources"
+$placeholderManifest = @(Import-Csv -LiteralPath (Join-Path $repoRoot "scaffold\placeholders.tsv") -Delimiter "`t" -Encoding UTF8)
+$renderSources = @($fileManifest | Where-Object { $_.mode -ceq "render" -and $_.placeholder_policy -ceq "replace" })
+foreach ($pRow in $placeholderManifest) {
+    $declaredPacks = @($pRow.packs -split ';' | Where-Object { $_ })
+    $matchingFiles = @($renderSources | Where-Object {
+        $filePacks = @($_.packs -split ';')
+        foreach ($dp in $declaredPacks) {
+            if ($filePacks -ccontains $dp) { return $true }
+        }
+        return $false
+    })
+    $referenced = $false
+    foreach ($mf in $matchingFiles) {
+        $srcContent = Get-Content -LiteralPath (Join-Path $repoRoot $mf.source) -Raw -Encoding UTF8
+        if ($srcContent.Contains($pRow.token)) {
+            $referenced = $true
+            break
+        }
+    }
+    Assert-True $referenced "Placeholder $($pRow.token) (packs: $($pRow.packs)) is not referenced by any render+replace source in its declared packs."
 }
 
 Write-Host "==> examples remain illustrative and defer generated file sets to scaffold manifests"
