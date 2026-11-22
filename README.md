@@ -15,6 +15,45 @@
 
 “个人、商业、开源”不是互斥分类：独立开发者可以交付商业项目，商业项目也可以开源。初始化器使用 profile 提供常见起点，再通过 pack 叠加 API、数据、前端、团队、运维等实际能力。
 
+## 快速开始（30 秒上手）
+
+1. **查看可用起点、能力包和可填字段**（默认输出对齐表格，加 `-Tsv` / `--tsv` 输出原始 TSV）：
+
+```powershell
+pwsh -NoProfile -File scripts/init-docs.ps1 -ListProfiles
+pwsh -NoProfile -File scripts/init-docs.ps1 -ListPacks
+pwsh -NoProfile -File scripts/init-docs.ps1 -ListPlaceholders -Profile personal
+```
+
+2. **先预览（`-DryRun` 不写入任何文件）**，确认清单后再去掉 `-DryRun` 正式生成：
+
+```powershell
+pwsh -NoProfile -File scripts/init-docs.ps1 `
+  -Target E:\Projects\my-project `
+  -ProjectName my-project `
+  -Owner "项目负责人" `
+  -Profile personal `
+  -Date 2026-07-10 `
+  -DryRun
+```
+
+```bash
+bash scripts/init-docs.sh \
+  --target ../my-project \
+  --project-name my-project \
+  --owner '项目负责人' \
+  --profile personal \
+  --date 2026-07-10 \
+  --dry-run
+```
+
+3. **三大起点（Profile）速览**（可按需叠加 pack，详细规则见下文 `## 使用方法`）：
+   - `personal`：极简 7 个入口（不强制 BACKLOG、PR、CI 或 AI plan）
+   - `commercial`：商业交付基线（报价、客户确认、变更、交付验收、支持与安全）
+   - `open-source`：开源社区基线（贡献、安全、行为准则、治理、支持与许可证决策）
+
+> 详细参数、按需 pack 列表、严校验模式与 CI 激活方式见下方 `## 使用方法`；想先看填好后的样子，直接浏览 `examples/order-service/`。
+
 ## 设计原则
 
 1. **先总览，后细节**：先看 `docs/README.md`，再进入各专题文档。
@@ -51,6 +90,9 @@ project-docs-template/
 │   └── workflows/
 │       └── docs-template-checks.yml
 ├── scripts/
+│   ├── .gitattributes               # Git 检出 Bash 脚本使用 LF
+│   ├── lib/template-hash.ps1        # 初始化器和占位符检查共用的模板文本摘要
+│   ├── lib/template-hash.sh
 │   ├── init-docs.sh                # Bash 初始化器（macOS / Linux / WSL / Git Bash）
 │   ├── init-docs.ps1               # PowerShell 初始化器（Windows / pwsh）
 │   ├── check-docs-consistency.sh   # 三索引同步检查（bash / macOS / Linux / WSL）
@@ -122,6 +164,7 @@ project-docs-template/
         ├── integration-guide-template.md # 接口 / 第三方服务接入手册
         ├── migration-guide-template.md # 版本 / 使用方迁移指南
         ├── technical-migration-plan.md # 技术迁移计划
+        ├── project-failure-patterns-and-prevention.md # 项目常见失误与预防清单
         ├── troubleshooting.md    # 故障排查模板
         ├── support-policy.md     # 支持范围模板
         ├── license-selection.md  # 开源许可证选择与落地检查
@@ -153,7 +196,7 @@ project-docs-template/
 | 你的情况 | 从这里开始 |
 |----------|-----------|
 | 全新项目，从 0 搭文档 | 本文件 § 1 初始化项目文档 |
-| 想查看可用 profile / pack | `pwsh scripts/init-docs.ps1 -ListProfiles` / `-ListPacks` |
+| 想查看可用 profile / pack / 可填字段 | `pwsh scripts/init-docs.ps1 -ListProfiles` / `-ListPacks` / `-ListPlaceholders` |
 | 想先预览生成文件且不写入 | 初始化命令加 `-DryRun` / `--dry-run` |
 | 已有旧文档，想迁移到本规范 | `template-mapping.md`（旧文档 → 本模板的归类指南） |
 | 只想查写作规范 / 占位符 / 版本号格式 | `docs/style-guide.md` |
@@ -165,6 +208,7 @@ project-docs-template/
 | 想写接口 / 第三方服务接入手册 | `docs/guides/integration-guide-template.md` |
 | 想写技术迁移计划 | `docs/guides/technical-migration-plan.md` |
 | 想沉淀问题复盘 | `docs/devlog/postmortem-template.md` |
+| 想把多次问题提炼为通用防错门禁 | `docs/guides/project-failure-patterns-and-prevention.md` |
 | 想扩展贡献者指南 / 外部参与流程 | `docs/guides/contributor-guide-template.md` |
 | 想写 RFC / 设计提案 | `docs/design/rfc-template.md` |
 | 想写版本迁移指南（面向使用方） | `docs/guides/migration-guide-template.md` |
@@ -219,7 +263,7 @@ bash scripts/init-docs.sh \
 ```
 
 确认 dry-run 输出后去掉 `-DryRun` / `--dry-run` 正式生成。可通过
-`-ListProfiles` / `--list-profiles` 和 `-ListPacks` / `--list-packs` 查看当前清单。
+`-ListProfiles` / `--list-profiles`、`-ListPacks` / `--list-packs` 和 `-ListPlaceholders` / `--list-placeholders` 查看当前清单（加 `-Tsv` / `--tsv` 可输出原始 TSV）。
 
 初始化器定位为**项目启动时的一次性安全生成器**，不是模板升级器：相同内容可重复执行并显示 `UNCHANGED`；一旦受管文件被人工修改，或需要在后期扩展 profile / pack，重新执行可能因文件或 state 冲突而整体停止。此时应先在新的临时目录 dry-run / 生成，再通过 Git diff 人工合并；当前版本不提供 `force` 或自动覆盖更新模式。
 
@@ -271,9 +315,24 @@ github-ci       GitHub Actions 门禁（链接立即检查，占位符通过 str
 
 初始化完成后按控制台中的 `UNRESOLVED` 清单补充项目事实。可复用的 `*-template.md` 保留占位符是正常的；活动文档中的未知事实写 `TBD`，不适用项写 `N/A`，不要编造内容。
 
+需要一次生成可通过占位符检查的个人项目时，先用 `-DryRun` 查看所选活动文档的字段，再用 `-RequireComplete` 生成。`-SetValue` 接受已启用的项目元数据和活动文档中列出的正文字段。同名字段共用一个值。下面的 PowerShell 示例直接调用脚本，以数组传入多项。
+
+```powershell
+$fields = @(
+  'SCOPE=文档维护', 'RELATED_DOCS=docs/README.md', 'TOOL=PowerShell', 'TOOL_VERSION=7',
+  'DESCRIPTION=本地文档检查', 'ISSUE_TITLE=如何运行检查', 'USER_A=维护者', 'USER_B=贡献者',
+  'NEED=检查文档', 'SCENARIO=提交改动', 'METRIC_NAME=检查耗时', 'TARGET=2 分钟'
+)
+./scripts/init-docs.ps1 -Target ../my-project -ProjectName my-project -Owner maintainer -Profile personal -SetValue $fields -RequireComplete
+```
+
+Bash 使用相同字段，每项传一个 `--set 'KEY=VALUE'`，并加 `--require-complete`。仍有未填标记时，两种初始化器都会列出文件和字段、返回退出码 6，并在写入目标目录前停止。`TBD` 和 `N/A` 的含义仍由项目负责人确认。
+
 启用 `tooling` pack 时会生成本地占位符检查与 Markdown 文件、图片、anchor、路径大小写检查脚本，但不会自动安装托管平台 CI。显式加入 `github-ci` 后，Consumer workflow 会立即严格检查本地链接；占位符步骤在准备阶段只提示，直到本地 `check-placeholders` 返回 0 且维护者创建 `.docs-template/strict-ci`，才转为阻断。模板仓库自身使用独立 CI，不会被分发到目标项目。
 
 激活前先确认本地占位符检查确实返回 0，再执行 `New-Item -ItemType File -Force .docs-template/strict-ci`（PowerShell）或 `touch .docs-template/strict-ci`（Bash），并将该空标记提交到仓库。
+
+链接检查在 Git 工作区扫描已跟踪文档及尚未跟踪且未被忽略的 Markdown，指定单个文件时直接检查该文件。在普通目录中递归扫描。占位符检查识别 GitHub 工作流的表达式，同一行的模板字段仍会报告。可复用模板以统一换行计算 SHA-256，Git 在 LF 和 CRLF 之间转换时可以正常检出和校验。
 
 ### 3. 后续维护规则
 
@@ -289,6 +348,7 @@ github-ci       GitHub Actions 门禁（链接立即检查，占位符通过 str
 | 已知问题/技术债 | `docs/BACKLOG.md` |
 | 开发过程日志（日/周） | `docs/devlog/YYYY/MM/*.md` |
 | 问题复盘 / 事故复盘 / 复杂排障总结 | `docs/devlog/postmortem-template.md` 或 `docs/devlog/YYYY/MM/*-postmortem.md` |
+| 跨事件重复失误、证据误用或交付反模式 | `docs/guides/project-failure-patterns-and-prevention.md` |
 | 团队角色 / RACI / 模块责任变化 | `docs/guides/team-collaboration.md` |
 | 多人合并冲突处理规则、integration 分支或缺陷退回规则变化 | `docs/guides/merge-conflict-playbook.md` |
 | 接口接入 / 第三方服务接入说明变化 | `docs/guides/integration-guide-template.md` |
@@ -341,6 +401,7 @@ github-ci       GitHub Actions 门禁（链接立即检查，占位符通过 str
 | `docs/design/frontend-backend-contract-check.md` | 联调时需要对照页面行为、接口契约和缺口优先级 | 前端 + 后端 + QA |
 | `docs/guides/technical-migration-plan.md` | 需要规划框架升级、UI 库替换、构建工具切换或模块迁移 | Tech Lead / 开发团队 |
 | `docs/devlog/postmortem-template.md` | 需要沉淀异常、事故、复杂排障或失败方案复盘 | 团队 |
+| `docs/guides/project-failure-patterns-and-prevention.md` | 需要把多次问题提炼为跨事件可复用的失误模式和预防门禁 | 团队 / Reviewer |
 | `docs/business/quotation-estimate.md` | 商业化项目需要报价、工期、成本和风险缓冲预估 | Owner / 商务 / Tech Lead |
 | `docs/business/customer-confirmation.md` | 商业项目需要固定范围、客户依赖、待决策项和确认证据 | 客户决策人 / Owner / Tech Lead |
 | `docs/business/delivery-acceptance.md` | 商业项目需要记录交付物、验收证据、遗留项和资产交接 | 客户验收人 / 交付负责人 |
@@ -357,3 +418,7 @@ github-ci       GitHub Actions 门禁（链接立即检查，占位符通过 str
 | `docs/design/api-changes.md` | 对外提供 API 且有外部调用方 | API 使用方 |
 
 初始化器会按 manifest 复制选中的模板并生成实际文档清单。若后续人工新增文档，仍须同步 `docs/README.md`、根 README 和模板映射 / 检查契约。
+
+## 开源协议
+
+本模板仓库本身采用 [MIT License](LICENSE) 开源。初始化器不会将本仓库的 `LICENSE` 自动复制到下游项目；使用 `open-source` profile 生成新项目时，请仍按 `docs/guides/license-selection.md` 自行确认并添加目标项目的许可证文件。

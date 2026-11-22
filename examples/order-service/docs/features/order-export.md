@@ -54,35 +54,30 @@
 3. 导出中断（worker 崩溃 / 存储不可用）：任务状态置 `failed` 并记录错误码，站内信通知失败原因
 4. 文件已过期后下载：预签名 URL 返回 403，前端引导重新发起导出
 
-## 5. 数据与状态
+## 5. 输入、输出与状态
 
 | 项目 | 说明 |
 |------|------|
 | 输入 | 筛选条件 JSON（状态、时间范围、渠道等）、导出格式（csv/xlsx） |
 | 输出 | 对象存储中的导出文件 + 预签名下载 URL |
 | 状态 | `pending` → `processing` → `ready` / `failed` / `expired` |
+| 持久化 / 外部依赖 | MySQL `export_tasks` 表、Redis 并发限流计数、对象存储 |
 
-## 6. 接口关联
+## 6. 入口与调用方式
 
-| 接口 | 说明 |
-|------|------|
-| `POST /v1/orders/export` | 提交导出任务 |
-| `GET /v1/orders/export/{id}` | 查询导出任务状态 |
-| `GET /v1/orders/export/{id}/download` | 获取预签名下载 URL（兼容方案，前端优先用 GET status 返回的 URL） |
+| 入口 / 接口 / 命令 | 触发方 | 说明 |
+|--------------------|--------|------|
+| `POST /v1/orders/export` | 运营后台前端 | 提交导出任务，返回 `task_id` |
+| `GET /v1/orders/export/{id}` | 运营后台前端 | 查询导出任务状态与预签名下载 URL |
+| `GET /v1/orders/export/{id}/download` | 运营后台前端 | 兼容入口，返回预签名下载 URL |
 
-## 7. 架构落点
+## 7. 实现落点与架构边界
 
-### 7.1 三层架构落点
-
-| 层 | 涉及内容 | 说明 |
-|----|----------|------|
-| 表现层 | `ExportController` | HTTP 请求接收、参数校验、响应封装 |
-| 业务层 | `ExportTaskService`、`ExportWorker` | 任务创建、并发限流、异步执行、状态变更 |
+| 模块 / 组件 / 层 | 涉及内容 | 职责与边界说明 |
+|------------------|----------|----------------|
+| 表现层 | `ExportController` | HTTP 请求接收、参数校验、响应封装；不直接访问数据库 |
+| 业务层 | `ExportTaskService`、`ExportWorker` | 任务创建、并发限流、异步执行、状态流转 |
 | 数据层 | `ExportTaskRepository`、`ObjectStorageClient` | 任务持久化、文件上传、预签名 URL 生成 |
-
-### 7.2 六边形架构落点
-
-本项目采用三层架构，六边形架构落点填 `N/A`。
 
 ## 8. 边界与限制
 

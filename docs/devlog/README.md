@@ -15,8 +15,10 @@
 | `../../CHANGELOG.md` | 使用者 / 维护者 | 已发布版本的对外变更 | 按版本 | 启用 `release-support` pack 时 |
 | `../adr/*.md` | 开发者 / 维护者 | 重大且定稿的架构决策 | 按决策点 | 启用 `architecture` pack 时 |
 | `postmortem-template.md` | 开发者 / 维护者 | 异常、事故或复杂排障的根因与防复发动作 | 按事件 | 启用 `operations` pack 时 |
+| `../guides/project-failure-patterns-and-prevention.md` | 开发者 / 维护者 | 跨事件可复用的失误模式与预防门禁 | 按模式 | 启用 `operations` pack 时 |
 
-**一句话区分**：BACKLOG 是"要做什么"，普通 devlog 是"今天/这周做到哪里了"；启用相应 pack 后，CHANGELOG 用于对外版本变更，ADR 用于架构决策，postmortem 用于问题复盘。
+**一句话区分**：BACKLOG 是“要做什么”，普通 devlog 是“今天 / 这周做到哪里了”，postmortem 复盘一次问题；
+通用失误指南只保留跨事件仍成立的模式和控制，不保存项目专属结论。
 
 ## 2. 使用规则
 
@@ -25,12 +27,16 @@
 - 应该：发现的**问题**同步进 `BACKLOG.md`，devlog 只留指针
 - 应该：日志长度控制在 150 行以内，太长说明应拆分或提升到正式文档
 - 可选：个人项目可用日报；团队项目推荐周报
-- 可选：若启用了 `operations` pack，且一次问题跨越多个尝试、涉及运行影响或形成可复用教训，可复制 `postmortem-template.md` 新建问题复盘，并把行动项回流到 BACKLOG；涉及架构决策时再关联 ADR
+- 可选：若启用了 `operations` pack，且一次问题跨越多个尝试、涉及运行影响或形成可复用教训，
+  可复制 `postmortem-template.md` 新建问题复盘，并把行动项回流到 BACKLOG；涉及架构决策时再关联 ADR
+- 条件必填：若启用了 `operations` pack，同一已确认失误模式跨事件重复出现或形成可跨项目复用的控制时，
+  更新 `../guides/project-failure-patterns-and-prevention.md`；未启用时先回流 BACKLOG 或现有正式文档
 
 ## 3. 文件命名
 
-- 根目录只保留 `README.md` 与 `devlog-template.md`，不直接写入日 / 周日志
-- 启用 `operations` pack 时，问题复盘模板保留为 `postmortem-template.md`；实际复盘文件建议放入对应年月目录，例如 `docs/devlog/YYYY/MM/YYYY-MM-DD-incident-slug-postmortem.md`
+- 根目录只保留 `README.md`、`devlog-template.md` 与启用 `operations` pack 时的 `postmortem-template.md`，不直接写入日 / 周日志
+- 启用 `operations` pack 时，问题复盘模板保留为 `postmortem-template.md`；
+  实际复盘文件建议放入对应年月目录，例如 `docs/devlog/YYYY/MM/YYYY-MM-DD-incident-slug-postmortem.md`
 - 日报：`docs/devlog/YYYY/MM/YYYY-MM-DD.md`，例如 `docs/devlog/2026/04/2026-04-17.md`
 - 周报：`docs/devlog/YYYY/MM/YYYY-Www.md`，例如 `docs/devlog/2026/04/2026-W16.md`
 - 周报按记录创建日期所属月份归档；跨月周报可在正文标明覆盖日期范围

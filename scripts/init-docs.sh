@@ -7,6 +7,7 @@ set -f
 SCRIPT_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -P "$SCRIPT_DIR/.." && pwd)"
 SCAFFOLD_ROOT="$REPO_ROOT/scaffold"
+source "$SCRIPT_DIR/lib/template-hash.sh" || exit 5
 
 TARGET=""
 PROJECT_NAME=""
@@ -16,6 +17,8 @@ DRY_RUN=0
 REQUIRE_COMPLETE=0
 LIST_PROFILES=0
 LIST_PACKS=0
+LIST_PLACEHOLDERS=0
+TSV_OUTPUT=0
 SHOW_HELP=0
 PROFILE_ARGS=()
 INCLUDE_ARGS=()
@@ -41,19 +44,38 @@ trap cleanup EXIT HUP INT TERM
 
 usage() {
   cat <<'EOF'
-Usage:
+项目文档脚手架初始化器（Bash）
+
+核心概念：
+  Profile   常见项目起点（personal / commercial / open-source）
+  Pack      按需叠加的文档能力包（如 architecture / api / data / frontend / team / github）
+  Preserve  目标目录已有 README/配置等文件时自动保留，不覆盖
+
+常用命令：
+  # 1. 查看可用起点、能力包和可填字段
+  bash scripts/init-docs.sh --list-profiles
+  bash scripts/init-docs.sh --list-packs
+  bash scripts/init-docs.sh --list-placeholders [--profile personal] [--include-pack github]
+
+  # 2. 先预览（不写入任何文件），确认后再去掉 --dry-run 正式生成
   bash scripts/init-docs.sh \
     --target <directory> --project-name <name> --owner <owner> \
     --profile <personal|commercial|open-source>[,<profile>...] \
     [--include-pack <pack>[,<pack>...]] [--exclude-pack <pack>[,<pack>...]] \
     [--date YYYY-MM-DD] [--set KEY=VALUE] [--dry-run] [--require-complete]
 
-Discovery:
-  bash scripts/init-docs.sh --list-profiles
-  bash scripts/init-docs.sh --list-packs
+说明：
+  --set KEY=VALUE     可重复传入，支持项目元数据及所选活动文档中的正文字段
+  --require-complete  活动文档仍有未填占位符时返回退出码 6 且不写入任何文件
+  --tsv               配合 --list-* 使用时输出原始 Tab 分隔文本，便于脚本解析
 
-Safety:
-  The initializer never overwrites a different existing file and has no force mode.
+安全边界：
+  初始化器绝不静默覆盖已有不同文件，也不提供 force 或原地升级模式。
+  后续需追加 pack 时，请生成到新的临时目录再通过 Git diff 人工合并。
+
+退出码：
+  0  成功 / 预览通过          2  参数或路径安全错误      3  存在文件冲突（零写入）
+  4  脚手架清单损坏           5  文件系统读写错误        6  --require-complete 检测到未填占位符
 EOF
 }
 
@@ -76,7 +98,10 @@ while [ "$#" -gt 0 ]; do
     --owner=*) OWNER="${1#*=}"; shift ;;
     --date)
       need_value "$@"; CURRENT_DATE="$2"; shift 2 ;;
-    --date=*) CURRENT_DATE="${1#*=}"; shift ;;
+    --date=*)
+      val="${1#*=}"
+      [ -n "$val" ] || die 2 "Option requires a value: --date"
+      CURRENT_DATE="$val"; shift ;;
     --profile)
       need_value "$@"; PROFILE_ARGS[${#PROFILE_ARGS[@]}]="$2"; shift 2 ;;
     --profile=*) PROFILE_ARGS[${#PROFILE_ARGS[@]}]="${1#*=}"; shift ;;
@@ -93,6 +118,8 @@ while [ "$#" -gt 0 ]; do
     --require-complete) REQUIRE_COMPLETE=1; shift ;;
     --list-profiles) LIST_PROFILES=1; shift ;;
     --list-packs) LIST_PACKS=1; shift ;;
+    --list-placeholders) LIST_PLACEHOLDERS=1; shift ;;
+    --tsv) TSV_OUTPUT=1; shift ;;
     --help|-h) SHOW_HELP=1; shift ;;
     *) die 2 "Unknown option: $1" ;;
   esac
@@ -139,11 +166,102 @@ validate_column_count "$PLACEHOLDERS_TSV" 7
 
 if [ "$SHOW_HELP" -eq 1 ]; then usage; exit 0; fi
 if [ "$LIST_PROFILES" -eq 1 ]; then
-  awk -F '\t' 'NR > 1 { sub(/\r$/, "", $3); print $1 "\t" $2 "\t" $3 }' "$PROFILES_TSV"
+  if [ "$TSV_OUTPUT" -eq 1 ]; then
+    awk -F '\t' 'NR > 1 { sub(/\r$/, "", $3); print $1 "\t" $2 "\t" $3 }' "$PROFILES_TSV" | LC_ALL=C sort
+  else
+    printf '%-14s %-58s %s\n' 'PROFILE' 'DEFAULT PACKS' 'DESCRIPTION'
+    printf '%-14s %-58s %s\n' '--------------' '----------------------------------------------------------' '--------------------'
+    awk -F '\t' 'NR > 1 { sub(/\r$/, "", $3); print $1 "\t" $2 "\t" $3 }' "$PROFILES_TSV" | LC_ALL=C sort | awk -F '\t' '{ printf "%-14s %-58s %s\n", $1, $2, $3 }'
+  fi
   exit 0
 fi
 if [ "$LIST_PACKS" -eq 1 ]; then
-  awk -F '\t' 'NR > 1 { sub(/\r$/, "", $3); print $1 "\t" $2 "\t" $3 }' "$PACKS_TSV"
+  if [ "$TSV_OUTPUT" -eq 1 ]; then
+    awk -F '\t' 'NR > 1 { sub(/\r$/, "", $3); print $1 "\t" $2 "\t" $3 }' "$PACKS_TSV" | LC_ALL=C sort
+  else
+    printf '%-24s %-26s %s\n' 'PACK' 'REQUIRES' 'DESCRIPTION'
+    printf '%-24s %-26s %s\n' '------------------------' '--------------------------' '--------------------'
+    awk -F '\t' 'NR > 1 { sub(/\r$/, "", $3); print $1 "\t" $2 "\t" $3 }' "$PACKS_TSV" | LC_ALL=C sort | awk -F '\t' '{ req = ($2 == "" ? "-" : $2); printf "%-24s %-26s %s\n", $1, req, $3 }'
+  fi
+  exit 0
+fi
+if [ "$LIST_PLACEHOLDERS" -eq 1 ]; then
+  filter_packs=""
+  if [ "${#PROFILE_ARGS[@]}" -gt 0 ] || [ "${#INCLUDE_ARGS[@]}" -gt 0 ]; then
+    filter_packs="$(awk -F '\t' \
+      -v profiles_arg="$(IFS=,; printf '%s' "${PROFILE_ARGS[*]}")" \
+      -v includes_arg="$(IFS=,; printf '%s' "${INCLUDE_ARGS[*]}")" \
+      -v excludes_arg="$(IFS=,; printf '%s' "${EXCLUDE_ARGS[*]}")" '
+      FILENAME == ARGV[1] && FNR > 1 { sub(/\r$/, "", $3); prof[$1] = $2; next }
+      FILENAME == ARGV[2] && FNR > 1 { sub(/\r$/, "", $3); pack_req[$1] = $2; valid_pack[$1] = 1; next }
+      END {
+        sel["core"] = 1
+        n = split(profiles_arg, arr, ",")
+        for (i = 1; i <= n; i++) {
+          p = arr[i]; gsub(/^[ \t]+|[ \t]+$/, "", p); p = tolower(p)
+          if (p == "") continue
+          if (!(p in prof)) { printf "ERR:Unknown profile: %s\n", p; exit 2 }
+          m = split(prof[p], pp, ";")
+          for (j = 1; j <= m; j++) if (pp[j] != "") sel[pp[j]] = 1
+        }
+        n = split(includes_arg, arr, ",")
+        for (i = 1; i <= n; i++) {
+          p = arr[i]; gsub(/^[ \t]+|[ \t]+$/, "", p); p = tolower(p)
+          if (p == "") continue
+          if (!(p in valid_pack)) { printf "ERR:Unknown pack in --include-pack: %s\n", p; exit 2 }
+          sel[p] = 1
+        }
+        changed = 1
+        while (changed) {
+          changed = 0
+          for (k in sel) {
+            m = split(pack_req[k], rr, ";")
+            for (j = 1; j <= m; j++) {
+              if (rr[j] != "" && !(rr[j] in sel)) { sel[rr[j]] = 1; changed = 1 }
+            }
+          }
+        }
+        n = split(excludes_arg, arr, ",")
+        for (i = 1; i <= n; i++) {
+          p = arr[i]; gsub(/^[ \t]+|[ \t]+$/, "", p); p = tolower(p)
+          if (p != "") delete sel[p]
+        }
+        out = ""
+        for (k in sel) out = (out == "" ? k : out ";" k)
+        print out
+      }
+    ' "$PROFILES_TSV" "$PACKS_TSV")" || die 2 "${filter_packs#ERR:}"
+  fi
+  if [ "$TSV_OUTPUT" -eq 1 ]; then
+    awk -F '\t' -v fp="$filter_packs" '
+      BEGIN { if (fp != "") { n = split(fp, a, ";"); for (i = 1; i <= n; i++) allow[a[i]] = 1 } }
+      NR > 1 {
+        sub(/\r$/, "", $7)
+        if (fp != "") {
+          ok = 0; m = split($3, p, ";")
+          for (j = 1; j <= m; j++) if (p[j] in allow) { ok = 1; break }
+          if (!ok) next
+        }
+        print $1 "\t" $2 "\t" $3 "\t" $5 "\t" $6 "\t" $7
+      }
+    ' "$PLACEHOLDERS_TSV" | LC_ALL=C sort
+  else
+    printf '%-30s %-8s %-26s %-12s %s\n' 'TOKEN' 'REQUIRED' 'PACKS' 'FALLBACK' 'DESCRIPTION'
+    printf '%-30s %-8s %-26s %-12s %s\n' '------------------------------' '--------' '--------------------------' '------------' '--------------------'
+    awk -F '\t' -v fp="$filter_packs" '
+      BEGIN { if (fp != "") { n = split(fp, a, ";"); for (i = 1; i <= n; i++) allow[a[i]] = 1 } }
+      NR > 1 {
+        sub(/\r$/, "", $7)
+        if (fp != "") {
+          ok = 0; m = split($3, p, ";")
+          for (j = 1; j <= m; j++) if (p[j] in allow) { ok = 1; break }
+          if (!ok) next
+        }
+        fb = ($5 != "" ? $5 : ($6 != "" ? $6 : "-"))
+        print $1 "\t" $2 "\t" $3 "\t" fb "\t" $7
+      }
+    ' "$PLACEHOLDERS_TSV" | LC_ALL=C sort | awk -F '\t' '{ printf "%-30s %-8s %-26s %-12s %s\n", $1, $2, $3, $4, $5 }'
+  fi
   exit 0
 fi
 
@@ -392,11 +510,6 @@ while IFS="$US" read -r token required packs profiles default_value tbd_value de
   fi
 done < <(awk -F '\t' 'NR > 1 { sub(/\r$/, "", $7); for (i=1;i<=7;i++) printf "%s%s", $i, (i<7 ? "\034" : "\n") }' "$PLACEHOLDERS_TSV")
 
-while IFS=$'\t' read -r key value; do
-  [ -n "$key" ] || continue
-  match_has "$APPLICABLE_KEYS_MATCH" "$key" || die 2 "Unknown or inactive --set key for the selected profiles and packs: $key"
-done < "$CUSTOM_VALUES"
-
 safe_relative() {
   local value="$1"
   [ -n "$value" ] || return 1
@@ -606,6 +719,22 @@ done < <(awk -F '\t' 'NR > 1 { sub(/\r$/, "", $8); for (i=1;i<=8;i++) printf "%s
 [ -s "$SELECTED_ROWS" ] || die 4 "The selected profiles and packs produced no files."
 LC_ALL=C sort "$SELECTED_ROWS" -o "$SELECTED_ROWS"
 
+body_sources=()
+while IFS="$US" read -r destination source packs mode conflict placeholder_policy index_group description; do
+  if [ "$mode" = "render" ] && [ "$placeholder_policy" = "replace" ]; then
+    body_sources+=("$REPO_ROOT/$source")
+  fi
+done < "$SELECTED_ROWS"
+while IFS=$'\t' read -r key value; do
+  match_has "$APPLICABLE_KEYS_MATCH" "$key" && continue
+  token="{{$key}}"
+  if awk -F '\t' -v token="$token" '$1 == token { found=1 } END { exit !found }' "$PLACEHOLDERS_TSV" ||
+     [ "${#body_sources[@]}" -eq 0 ] || ! grep -Fq -- "$token" "${body_sources[@]}"; then
+    die 2 "Unknown or inactive --set key for the selected profiles and packs: $key"
+  fi
+  printf '%s\t%s\n' "$token" "$value" >> "$REPLACEMENTS"
+done < "$CUSTOM_VALUES"
+
 join_set() { awk 'BEGIN{first=1} { if(!first) printf ", "; printf "%s", $0; first=0 } END { print "" }' "$1"; }
 CATALOG="$TMP_ROOT/catalog.md"
 {
@@ -621,7 +750,7 @@ CATALOG="$TMP_ROOT/catalog.md"
     case "$placeholder_policy" in
       preserve-template) catalog_type="可复用模板" ;;
       none) catalog_type="工具或配置" ;;
-      *) catalog_type="活跃文档" ;;
+      *) catalog_type="活动文档" ;;
     esac
     printf '| `%s` | `%s` | %s | %s |\n' "$index_group" "$destination_display" "$catalog_type" "$description"
   done < "$SELECTED_ROWS"
@@ -646,7 +775,7 @@ ROOT_CATALOG="$TMP_ROOT/root-catalog.md"
     case "$placeholder_policy" in
       preserve-template) catalog_type="可复用模板" ;;
       none) catalog_type="工具或配置" ;;
-      *) catalog_type="活跃文档" ;;
+      *) catalog_type="活动文档" ;;
     esac
     printf '| [%s](%s) | %s | %s |\n' "$destination" "$destination" "$catalog_type" "$description"
     root_catalog_rows=$((root_catalog_rows + 1))
@@ -728,6 +857,9 @@ while IFS="$US" read -r destination source packs mode conflict placeholder_polic
   if [ "$conflict" = "preserve" ] && [ -f "$prospective_target" ] && [ "$(sha256_file "$prospective_target")" != "$staged_hash" ]; then
     :
   else
+    if [ "$placeholder_policy" = "preserve-template" ]; then
+      staged_hash="$(template_text_hash "$staged")" || die 5 "Could not hash template $destination."
+    fi
     printf '1\t%s\t%s\t%s\t%s\t%s\t%s\n' "$template_version" "$destination" "$source" "$packs" "$placeholder_policy" "$staged_hash" >> "$STATE_ENTRIES"
   fi
   printf '%s\t%s\t%s\n' "$destination" "$staged" "$conflict" >> "$OUTPUTS"
@@ -758,14 +890,12 @@ if [ -s "$UNRESOLVED" ]; then
       key=path SUBSEP token
       if (!seen[key]++) {
         if (tokens[path] == "") tokens[path]=token
-        else if (token_count[path] < 11) tokens[path]=tokens[path] ", " token
-        token_count[path]++
+        else tokens[path]=tokens[path] ", " token
       }
     }
     END {
       for (path in total) {
-        suffix=(token_count[path] > 12 ? ", ..." : "")
-        printf "  %s: %d (%s%s)\n", path, total[path], tokens[path], suffix
+        printf "  %s: %d (%s)\n", path, total[path], tokens[path]
       }
     }
   ' | LC_ALL=C sort
@@ -799,7 +929,7 @@ while IFS=$'\t' read -r relative staged conflict_policy; do
   printf '[%-9s] %s\n' "$action" "$relative"
 done < "$OUTPUTS"
 
-[ "$conflict_count" -eq 0 ] || die 3 "Different existing files or path collisions were found. No target files were written."
+[ "$conflict_count" -eq 0 ] || die 3 "Different existing files or path collisions were found. No target files were written. Note: init-docs does not overwrite or upgrade in place; to add packs or update templates, generate into a new temporary directory and merge via git diff."
 if [ "$DRY_RUN" -eq 1 ]; then
   printf 'DRY-RUN OK: no target files were written.\n'
   exit 0
@@ -863,4 +993,22 @@ done < "$APPLY_OUTPUTS"
 
 file_count="$(wc -l < "$SELECTED_ROWS" | tr -d ' ')"
 printf 'OK: initialized %s scaffold file(s) plus state metadata.\n' "$file_count"
+preserved_list="$(awk -F '\t' '$2 == "PRESERVE" { out = (out == "" ? $1 : out ", " $1) } END { print out }' "$ACTIONS")"
+has_tooling=0; set_has "$SELECTED_PACKS" "tooling" && has_tooling=1
+has_ghci=0; set_has "$SELECTED_PACKS" "github-ci" && has_ghci=1
+if [ -n "$preserved_list" ] || [ -s "$UNRESOLVED" ] || [ "$has_tooling" -eq 1 ] || [ "$has_ghci" -eq 1 ]; then
+  printf 'Next steps:\n'
+  if [ -n "$preserved_list" ]; then
+    printf '  - Manually merge preserved file(s): %s\n' "$preserved_list"
+  fi
+  if [ -s "$UNRESOLVED" ]; then
+    printf '  - Fill remaining placeholders in active documents (use TBD for unknown facts, N/A for inapplicable items).\n'
+  fi
+  if [ "$has_tooling" -eq 1 ]; then
+    printf '  - Run local checks in target repo: bash scripts/check-placeholders.sh && bash scripts/check-doc-links.sh\n'
+  fi
+  if [ "$has_ghci" -eq 1 ]; then
+    printf '  - After check-placeholders passes (exit 0), create .docs-template/strict-ci to enable strict CI blocking.\n'
+  fi
+fi
 exit 0

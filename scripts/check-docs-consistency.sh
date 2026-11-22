@@ -14,11 +14,9 @@
 #
 # 用法：
 #   bash scripts/check-docs-consistency.sh
-#
-# 仅做 warning 级检查，纳入 CI 时建议配合 `|| true` 防止阻塞构建，
-# 稳定后再改为硬失败。
 
 set -uo pipefail
+shopt -s nullglob
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -31,12 +29,22 @@ missing=0
 
 echo "==> 检查 docs/ 下的所有 .md 是否在 README.md 和 template-mapping.md 中被提及"
 
-declare -A base_name_counts
+doc_files=()
 while IFS= read -r -d '' file; do
-  rel="${file#./docs/}"
-  base="$(basename "$rel")"
-  base_name_counts["$base"]=$(( ${base_name_counts["$base"]:-0} + 1 ))
+  doc_files+=("${file#./docs/}")
 done < <(find ./docs -type f -name "*.md" -print0)
+
+count_basename() {
+  local target_base="$1"
+  local count=0
+  local item
+  for item in "${doc_files[@]}"; do
+    if [ "$(basename "$item")" = "$target_base" ]; then
+      count=$((count + 1))
+    fi
+  done
+  printf '%s' "$count"
+}
 
 has_doc_reference() {
   local source_file="$1"
@@ -62,27 +70,27 @@ has_doc_reference() {
 }
 
 # 收集 docs/ 下所有 .md 的相对路径（从 docs/ 起算）
-while IFS= read -r -d '' file; do
-  rel="${file#./docs/}"
+for rel in "${doc_files[@]}"; do
   # 跳过模板本身
   case "$rel" in
     *-template.md|ADR-000-template.md) continue ;;
   esac
 
   base="$(basename "$rel")"
+  base_count="$(count_basename "$base")"
 
   # 在 README.md 中检索文件名或相对路径
-  if ! has_doc_reference "$ROOT_README" "$rel" "$base" "${base_name_counts["$base"]}"; then
+  if ! has_doc_reference "$ROOT_README" "$rel" "$base" "$base_count"; then
     echo "  [miss] docs/${rel}  未在 ${ROOT_README} 中出现"
     missing=$((missing + 1))
   fi
 
   # 在 template-mapping.md 中检索
-  if ! has_doc_reference "$MAPPING" "$rel" "$base" "${base_name_counts["$base"]}"; then
+  if ! has_doc_reference "$MAPPING" "$rel" "$base" "$base_count"; then
     echo "  [miss] docs/${rel}  未在 ${MAPPING} 中出现"
     missing=$((missing + 1))
   fi
-done < <(find ./docs -type f -name "*.md" -print0)
+done
 
 echo
 echo "==> 检查 docs/README.md § 2 是否提到所有一级子目录"
@@ -96,9 +104,9 @@ done
 
 echo
 if [ "$missing" -eq 0 ]; then
-  echo "✅ 三索引一致，无缺失引用。"
+  echo "OK 三索引一致，无缺失引用。"
   exit 0
 else
-  echo "❌ 共发现 ${missing} 处缺失。请同步更新对应索引。"
+  echo "FAIL 共发现 ${missing} 处缺失。请同步更新对应索引。"
   exit 1
 fi

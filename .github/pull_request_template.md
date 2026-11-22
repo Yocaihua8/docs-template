@@ -85,7 +85,7 @@
 
 - [ ] 文档已同步更新（对照 `CONTRIBUTING.md § 6`）
 - [ ] `CHANGELOG.md` 已更新到 `Unreleased`，或本 PR 为模板仓库维护变更且已在上方标记 N/A
-- [ ] 若触发 `docs/README.md § 4` 的强制条件，已提交 ADR
+- [ ] 若触发 [ADR 新建条件](../docs/adr/README.md#1-何时需要新增-adr)，已提交 ADR
 - [ ] 若涉及对外 API 破坏性变更，已更新 `docs/design/api-changes.md`
 - [ ] 未绕过模块边界、层边界或既有端口 / 适配器边界
 - [ ] 阻塞 Review 评论已处理，非阻塞建议已有结论

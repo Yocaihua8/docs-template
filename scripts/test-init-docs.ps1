@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -299,16 +299,40 @@ try {
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
     $bash = Get-BashPath
 
-    Write-Host "==> list profiles and packs"
+    Write-Host "==> list profiles, packs, and placeholders (table and TSV)"
     $profiles = Invoke-InitializerPowerShell @("-ListProfiles")
     Assert-True ($profiles.ExitCode -eq 0) $profiles.Output
+    Assert-True ($profiles.Stdout -match "(?m)^PROFILE\s+DEFAULT PACKS") "Missing table header in -ListProfiles"
     foreach ($name in @("personal", "commercial", "open-source")) {
-        Assert-True ($profiles.Stdout -match "(?m)^$([regex]::Escape($name))`t") "Missing profile: $name"
+        Assert-True ($profiles.Stdout -match "(?m)^$([regex]::Escape($name))\s+") "Missing profile in table: $name"
+    }
+    $profilesTsv = Invoke-InitializerPowerShell @("-ListProfiles", "-Tsv")
+    Assert-True ($profilesTsv.ExitCode -eq 0) $profilesTsv.Output
+    foreach ($name in @("personal", "commercial", "open-source")) {
+        Assert-True ($profilesTsv.Stdout -match "(?m)^$([regex]::Escape($name))`t") "Missing profile in TSV: $name"
     }
     $packs = Invoke-InitializerPowerShell @("-ListPacks")
     Assert-True ($packs.ExitCode -eq 0) $packs.Output
+    Assert-True ($packs.Stdout -match "(?m)^PACK\s+REQUIRES") "Missing table header in -ListPacks"
     foreach ($name in @("core", "tracking", "tooling", "api", "workflow", "github", "github-ci")) {
-        Assert-True ($packs.Stdout -match "(?m)^$([regex]::Escape($name))`t") "Missing pack: $name"
+        Assert-True ($packs.Stdout -match "(?m)^$([regex]::Escape($name))\s+") "Missing pack in table: $name"
+    }
+    $packsTsv = Invoke-InitializerPowerShell @("-ListPacks", "-Tsv")
+    Assert-True ($packsTsv.ExitCode -eq 0) $packsTsv.Output
+    foreach ($name in @("core", "tracking", "tooling", "api", "workflow", "github", "github-ci")) {
+        Assert-True ($packsTsv.Stdout -match "(?m)^$([regex]::Escape($name))`t") "Missing pack in TSV: $name"
+    }
+    $placeholders = Invoke-InitializerPowerShell @("-ListPlaceholders", "-Profile", "personal", "-IncludePack", "github")
+    Assert-True ($placeholders.ExitCode -eq 0) $placeholders.Output
+    Assert-True ($placeholders.Stdout -match "(?m)^\{\{GITHUB_OWNER\}\}\s+true\s+github") "Missing GITHUB_OWNER in -ListPlaceholders"
+    Assert-True ($placeholders.Stdout -notmatch "\{\{LICENSE_SPDX_ID\}\}") "Unselected pack placeholder should be filtered out"
+    if ($null -ne $bash) {
+        $bashPlaceholders = Invoke-CapturedProcess $bash @(
+            (Convert-ToBashPathArgument $bashScript),
+            "--list-placeholders", "--profile", "personal", "--include-pack", "github"
+        )
+        Assert-True ($bashPlaceholders.ExitCode -eq 0) $bashPlaceholders.Output
+        Assert-True ($bashPlaceholders.Stdout.Replace("`r`n", "`n") -ceq $placeholders.Stdout.Replace("`r`n", "`n")) "Bash and PowerShell --list-placeholders output diverged."
     }
 
     Write-Host "==> dry-run writes nothing and all presets resolve"
@@ -416,6 +440,45 @@ try {
     Assert-True ($complete.ExitCode -eq 6) $complete.Output
     Assert-True (-not (Test-Path -LiteralPath $completeTarget)) "RequireComplete failure wrote target files."
 
+    Write-Host "==> strict personal generation accepts document fields and signs CRLF source templates as LF"
+    $crlfSource = New-Item -ItemType Directory -Path (Join-Path $tempRoot "template-source-crlf")
+    foreach ($tree in @("scaffold", "docs", "scripts")) {
+        Copy-Item -LiteralPath (Join-Path $repoRoot $tree) -Destination $crlfSource.FullName -Recurse -Force
+    }
+    $fixtureTemplate = "docs/features/feature-template.md"
+    $sourceFile = Join-Path $crlfSource.FullName $fixtureTemplate
+    $lfText = [IO.File]::ReadAllText($sourceFile).Replace("`r`n", "`n")
+    [IO.File]::WriteAllText($sourceFile, $lfText)
+    $expectedHash = (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    [IO.File]::WriteAllText($sourceFile, $lfText.Replace("`n", "`r`n"))
+    $bodyValues = @(
+        'SCOPE=文档', 'RELATED_DOCS=README.md', 'TOOL=PowerShell', 'TOOL_VERSION=7',
+        'DESCRIPTION=入口与验收', 'ISSUE_TITLE=启动', 'USER_A=维护者', 'USER_B=读者',
+        'NEED=查询', 'SCENARIO=首次使用', 'METRIC_NAME=耗时', 'TARGET=2 分钟'
+    )
+    $strictOutput = & (Join-Path $crlfSource.FullName "scripts/init-docs.ps1") -Target $completeTarget -ProjectName demo -Owner alice -Profile personal -Date 2026-07-10 -SetValue $bodyValues -RequireComplete 6>&1
+    Assert-True ($LASTEXITCODE -eq 0) ($strictOutput | Out-String)
+    $strictState = Import-Csv -LiteralPath (Join-Path $completeTarget ".docs-template/state.tsv") -Delimiter "`t"
+    $record = $strictState | Where-Object destination -CEQ $fixtureTemplate
+    Assert-True ($record.sha256 -ceq $expectedHash) "PowerShell recorded the checkout's raw CRLF digest."
+    foreach ($row in $strictState | Where-Object placeholder_policy -CEQ "replace") {
+        $activeText = [IO.File]::ReadAllText((Join-Path $completeTarget $row.destination))
+        Assert-True ($activeText -notmatch '\{\{|\}\}') "Strict generation left placeholders in $($row.destination)."
+    }
+    $strictSetup = [IO.File]::ReadAllText((Join-Path $completeTarget "docs/guides/setup.md"))
+    Assert-True ($strictSetup.Contains('入口与验收') -and $strictSetup -notmatch '\{\{') "Strict personal setup contains unfilled fields."
+    if ($null -ne $bash) {
+        $strictBashTarget = Join-Path $tempRoot "strict-personal-bash"
+        $strictArgs = @((Convert-ToBashPathArgument (Join-Path $crlfSource.FullName "scripts/init-docs.sh")), '--target', (Convert-ToBashPathArgument $strictBashTarget),
+            '--project-name', 'demo', '--owner', 'alice', '--profile', 'personal', '--date', '2026-07-10', '--require-complete')
+        foreach ($value in $bodyValues) { $strictArgs += @('--set', $value) }
+        $strictBash = Invoke-CapturedProcess $bash $strictArgs
+        Assert-True ($strictBash.ExitCode -eq 0) $strictBash.Output
+        Assert-True (([IO.File]::ReadAllText((Join-Path $strictBashTarget "docs/guides/setup.md"))) -ceq $strictSetup) "Strict generation disagrees across shells."
+        $bashState = [IO.File]::ReadAllText((Join-Path $strictBashTarget ".docs-template/state.tsv"))
+        Assert-True ($bashState -ceq [IO.File]::ReadAllText((Join-Path $completeTarget ".docs-template/state.tsv"))) "Strict generation produced different state for the same CRLF source."
+    }
+
     Write-Host "==> fail conflicts are zero-write"
     $conflictTarget = Join-Path $tempRoot "fail-conflict"
     $conflictDocs = Join-Path $conflictTarget "docs"
@@ -471,6 +534,33 @@ try {
     )
     Assert-True ($include.ExitCode -eq 0) $include.Output
     Assert-True (Test-Path -LiteralPath (Join-Path $includeTarget "docs\design\api-spec.md")) "api pack did not generate api-spec.md."
+    $adrCatalog = [IO.File]::ReadAllText((Join-Path $includeTarget "docs/README.md"))
+    $adrRules = [IO.File]::ReadAllText((Join-Path $includeTarget "docs/adr/README.md"))
+    Assert-True ($adrCatalog.Contains('(adr/README.md#1-何时需要新增-adr)')) "Architecture catalog should link directly to the criteria."
+    Assert-True ($adrRules.Contains('跨服务的数据契约发生破坏性变更') -and $adrRules.Contains('可逆的局部重构') -and -not $adrRules.Contains('../README.md § 4')) "Generated ADR criteria must be self-contained."
+
+    Write-Host "==> operations pack distributes prevention guide and postmortem template"
+    $operationsTarget = Join-Path $tempRoot "include-operations"
+    $operations = Invoke-InitializerPowerShell @(
+        "-Target", $operationsTarget,
+        "-ProjectName", "operations-demo",
+        "-Owner", "alice",
+        "-Profile", "personal",
+        "-IncludePack", "operations",
+        "-Date", "2026-07-10"
+    )
+    Assert-True ($operations.ExitCode -eq 0) $operations.Output
+    $preventionGuide = Join-Path $operationsTarget "docs\guides\project-failure-patterns-and-prevention.md"
+    $postmortemTemplate = Join-Path $operationsTarget "docs\devlog\postmortem-template.md"
+    Assert-True (Test-Path -LiteralPath $preventionGuide) "operations pack did not generate the prevention guide."
+    Assert-True (Test-Path -LiteralPath $postmortemTemplate) "operations pack did not generate the postmortem template."
+    $preventionContent = Get-Content -LiteralPath $preventionGuide -Raw -Encoding UTF8
+    Assert-True (
+        $preventionContent -match "operations-demo"
+    ) "Operations prevention guide did not render project metadata."
+    Assert-True (
+        $preventionContent -notmatch '\{\{[^{}]+\}\}'
+    ) "Operations prevention guide retained an unresolved placeholder."
 
     Write-Host "==> tracking accepts and renders MILESTONE_DUE_DATE"
     $trackingTarget = Join-Path $tempRoot "tracking-milestone"
@@ -532,11 +622,13 @@ try {
         Write-Host "SKIP Bash parity: bash executable was not found."
     }
 
-    Write-Host "==> generated personal, commercial, and open-source profiles have valid local links"
+    Write-Host "==> generated personal, commercial, open-source, and operations profiles have valid local links"
     $profileTargets = [ordered]@{
         personal = Join-Path $tempRoot "links-personal"
         commercial = Join-Path $tempRoot "links-commercial"
         "open-source" = $openSourceTarget
+        operations = $operationsTarget
+        api = $includeTarget
     }
 
     foreach ($profile in @("personal", "commercial")) {
@@ -581,6 +673,24 @@ try {
     Assert-True ($workflow -match "check-doc-links\.ps1") "Opt-in Consumer CI does not run the local link gate."
     Assert-True ($workflow -match [regex]::Escape(".docs-template/strict-ci")) "Opt-in Consumer CI does not use staged strict placeholder activation."
     $profileTargets["github-ci"] = $githubCiTarget
+
+    Write-Host "==> real CRLF Git checkout preserves template checks in both shells"
+    $checkout = Join-Path $tempRoot "crlf-checkout"
+    $checkoutPrefix = (Convert-ToBashPathArgument $checkout) + "/"
+    & git -C $githubCiTarget init --quiet
+    Assert-True ($LASTEXITCODE -eq 0) "Could not initialize checkout fixture."
+    & git -C $githubCiTarget -c core.autocrlf=false add --all
+    Assert-True ($LASTEXITCODE -eq 0) "Could not index generated files."
+    & git -C $githubCiTarget -c core.autocrlf=true checkout-index --all "--prefix=$checkoutPrefix"
+    Assert-True ($LASTEXITCODE -eq 0) "Could not create CRLF checkout."
+    $templateFile = "docs/features/feature-template.md"
+    Assert-True (([IO.File]::ReadAllText((Join-Path $checkout $templateFile))).Contains("`r`n")) "Git fixture did not produce CRLF."
+    $psCheck = Invoke-CapturedProcess $pwsh @("-NoProfile", "-File", (Join-Path $checkout "scripts/check-placeholders.ps1"), $templateFile)
+    Assert-True ($psCheck.ExitCode -eq 0) $psCheck.Output
+    if ($null -ne $bash) {
+        $bashCheck = Invoke-CapturedProcess $bash @((Convert-ToBashPathArgument (Join-Path $checkout "scripts/check-placeholders.sh")), $templateFile)
+        Assert-True ($bashCheck.ExitCode -eq 0) $bashCheck.Output
+    }
 
     foreach ($entry in $profileTargets.GetEnumerator()) {
         $powerShellLinks = Invoke-CapturedProcess $pwsh @(

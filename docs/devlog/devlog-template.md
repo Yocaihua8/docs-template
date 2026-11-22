@@ -48,7 +48,7 @@
 
 > Author：张三
 > Iteration：Sprint-12
-> Related：`../features/order-export.md`、BACKLOG-042
+> Related：`../features/order-export.md`、B-042
 
 ## 1. Done
 - 完成订单导出任务的对象存储接入（上传 + 预签名 URL 生成）
@@ -58,17 +58,17 @@
 - **问题**：大文件上传偶发 504
   **影响**：单次导出 > 200MB 时约 5% 概率失败
   **当前处理**：临时将超时提高到 60s，观察中
-  **跟踪**：BACKLOG-045
+  **跟踪**：B-045
 
 ## 3. Decisions
 - 导出产物保留期改为 7 天 → 原因：与运营对齐的清理窗口
 - 关联 ADR：ADR-005-export-storage-choice.md
 
 ## 4. Next
-- 将 504 问题的定位结果同步到 BACKLOG-045
+- 将 504 问题的定位结果同步到 B-045
 - 联调前端下载链路
 
 ## 5. Links
 - PR：https://github.com/example/repo/pull/321
-- Issue：BACKLOG-045
+- Issue：B-045
 ```

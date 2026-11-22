@@ -39,6 +39,12 @@ jobs:
         shell: pwsh
         run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-placeholders.ps1 -Mode TemplateRepository
 
+      - name: Run Bash docs consistency and placeholder checks
+        shell: bash
+        run: |
+          bash scripts/check-docs-consistency.sh
+          bash scripts/check-placeholders.sh --mode template
+
   windows-scaffold-checks:
     name: Scaffold checks (Windows)
     runs-on: windows-latest
@@ -47,6 +53,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Run template regression checks
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test-docs-template-checks.ps1
+
       - name: Run initializer and profile checks
         shell: pwsh
         run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test-init-docs.ps1
@@ -54,3 +64,11 @@ jobs:
       - name: Run local link checker regression
         shell: pwsh
         run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/test-doc-links.ps1
+
+      - name: Run docs index consistency check
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-docs-consistency.ps1
+
+      - name: Run template placeholder check
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-placeholders.ps1 -Mode TemplateRepository

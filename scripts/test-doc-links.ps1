@@ -249,6 +249,34 @@ try {
         Assert-True ($bashNegative.Output -match '\[case-mismatch\] docs/guide\.md') "Bash did not enforce exact link-path casing on Windows.`n$($bashNegative.Output)"
     }
 
+    Write-Host "==> Git scans tracked and new Markdown and honors ignore rules only for source selection"
+    $gitRoot = Join-Path $tempRoot "git-scope"
+    Set-Utf8File (Join-Path $gitRoot ".gitignore") "node_modules/`ndist/"
+    Set-Utf8File (Join-Path $gitRoot "node_modules/package/README.md") "[ignored](package-missing.md)"
+    Set-Utf8File (Join-Path $gitRoot "dist/tracked.md") "[tracked](tracked-missing.md)"
+    Set-Utf8File (Join-Path $gitRoot "docs/新 guide.MD") "[new](new-missing.md)"
+    Set-Utf8File (Join-Path $gitRoot "README.md") "[asset](node_modules/package/README.md)"
+    & git -C $gitRoot init --quiet
+    Assert-True ($LASTEXITCODE -eq 0) "Could not initialize Git fixture."
+    & git -C $gitRoot add --force -- dist/tracked.md
+    Assert-True ($LASTEXITCODE -eq 0) "Could not stage the tracked fixture."
+    $gitResults = @(
+        (Invoke-PowerShellChecker $gitRoot @()),
+        (Invoke-BashChecker $bash $gitRoot "../check-doc-links.sh" @())
+    )
+    foreach ($result in $gitResults) {
+        Assert-ExitCode $result 1 "Git source selection"
+        Assert-True ($result.Output.Contains("tracked-missing.md") -and $result.Output.Contains("new-missing.md")) $result.Output
+        Assert-True ($result.Output -match 'FAIL found 2 invalid' -and -not $result.Output.Contains('package-missing.md')) $result.Output
+    }
+    foreach ($result in @(
+        (Invoke-PowerShellChecker $gitRoot @("-Target", "docs")),
+        (Invoke-BashChecker $bash $gitRoot "../check-doc-links.sh" @("docs"))
+    )) {
+        Assert-ExitCode $result 1 "Git subdirectory target"
+        Assert-True ($result.Output.Contains("new-missing.md") -and $result.Output -match 'FAIL found 1 invalid') $result.Output
+    }
+
     Write-Host "==> both checkers return 2 for a missing target"
     $psMissing = Invoke-PowerShellChecker $tempRoot @("-Target", "does-not-exist")
     $bashMissing = Invoke-BashChecker $bash $tempRoot "./check-doc-links.sh" @("does-not-exist")

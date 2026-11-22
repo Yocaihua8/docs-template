@@ -19,6 +19,23 @@ positional_target_seen=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    -h|--help)
+      cat <<'EOF'
+用法：
+  bash scripts/check-doc-links.sh [TARGET]
+  bash scripts/check-doc-links.sh --target docs
+
+说明：
+  检查下游项目 Markdown 文档中的本地文件、图片、标题锚点与路径大小写是否有效。
+  在 Git 仓库中扫描已跟踪及未忽略的 Markdown；普通目录中递归扫描并跳过常见构建/依赖目录。
+
+退出码：
+  0  所有本地链接有效
+  1  发现无效链接
+  2  目标路径无效或无法扫描
+EOF
+      exit 0
+      ;;
     --target)
       if [ "$#" -lt 2 ]; then
         echo "ERROR --target requires a value"
@@ -56,19 +73,24 @@ fi
 
 target_is_file=0
 files=()
-known_paths=()
 
 if [ -d "$target" ]; then
   if ! scan_root="$(cd "$target" 2>/dev/null && pwd -P)"; then
     echo "ERROR unable to scan target: $target"
     exit 2
   fi
-  while IFS= read -r -d '' file; do
-    files+=("$file")
-  done < <(find "$scan_root" -type f -iname '*.md' -print0 2>/dev/null)
-  while IFS= read -r -d '' entry; do
-    known_paths+=("$entry")
-  done < <(find "$scan_root" -print0 2>/dev/null)
+  if [ "$(git -C "$scan_root" rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; then
+    file_list="$(mktemp "${TMPDIR:-/tmp}/docs-template-links.XXXXXX")" || exit 2
+    trap 'rm -f -- "$file_list"' EXIT
+    git -C "$scan_root" ls-files -z --cached --others --exclude-standard -- ':(icase,glob)**/*.md' > "$file_list" || exit 2
+    while IFS= read -r -d '' file; do
+      if [ -f "$scan_root/$file" ]; then files+=("$scan_root/$file"); fi
+    done < "$file_list"
+  else
+    while IFS= read -r -d '' file; do
+      files+=("$file")
+    done < <(find "$scan_root" \( -type d \( -name '.git' -o -name 'node_modules' -o -name 'dist' -o -name 'build' -o -name '.next' -o -name '.venv' -o -name 'vendor' \) -prune \) -o \( -type f -iname '*.md' -print0 \) 2>/dev/null)
+  fi
 elif [ -f "$target" ] && [[ "$target" == *.[mM][dD] ]]; then
   target_is_file=1
   target_dir="$(dirname "$target")"
@@ -126,23 +148,20 @@ normalize_path() {
 path_case_exact() {
   local value="$1"
   local path_to_walk="$value"
-  local part entry
+  local part entry matched
   local current="/"
   local -a parts
 
   [ -e "$value" ] || return 1
-  if [ "$target_is_file" -eq 0 ] && { [ "$value" = "$scan_root" ] || [[ "$value" == "$scan_root/"* ]]; }; then
-    for entry in "${known_paths[@]}"; do
-      if [ "$entry" = "$value" ]; then
-        return 0
-      fi
-    done
-    return 1
+  if [ "$value" = "$scan_root" ]; then return 0; fi
+  if [[ "$value" == "$scan_root/"* ]]; then
+    current="$scan_root"
+    path_to_walk="${value#"$scan_root"/}"
   fi
 
   # MSYS/Cygwin drive mounts such as /c may exist without being enumerable as
   # children of /. Start inside the virtual drive and keep checking every real
-  # path segment with case-sensitive find matching.
+  # path segment against its actual directory entry.
   case "${OSTYPE:-}" in
     msys*|cygwin*|mingw*)
       if [[ "$path_to_walk" =~ ^/([A-Za-z])(/|$) ]]; then
@@ -159,9 +178,15 @@ path_case_exact() {
   IFS='/' read -r -a parts <<< "$path_to_walk"
   for part in "${parts[@]}"; do
     [ -n "$part" ] || continue
-    entry="$(find "$current" -mindepth 1 -maxdepth 1 -name "$part" -print -quit 2>/dev/null)"
-    [ -n "$entry" ] || return 1
-    current="$entry"
+    matched=0
+    for entry in "${current%/}"/* "${current%/}"/.[!.]* "${current%/}"/..?*; do
+      if [ "${entry##*/}" = "$part" ]; then
+        current="$entry"
+        matched=1
+        break
+      fi
+    done
+    [ "$matched" -eq 1 ] || return 1
   done
   return 0
 }

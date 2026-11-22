@@ -1,6 +1,6 @@
 # Changelog
 
-所有版本变更记录建议遵循 [Keep a Changelog] 的结构，版本号建议遵循语义化版本（Semantic Versioning）。
+所有版本变更记录建议遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，版本号建议遵循语义化版本（Semantic Versioning）。
 
 ---
 
